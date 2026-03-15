@@ -1,0 +1,16 @@
+# Development overrides — applied automatically by `docker compose up`
+services:
+  bot:
+    build:
+      context: .
+      target: builder
+    command: >
+      bash -c "pip install --no-deps -e . &&
+               pip install watchfiles &&
+               watchfiles --filter python 'python -m bratbot' src/"
+    volumes:
+      - ./src:/app/src:ro
+      - ./alembic:/app/alembic:ro
+      - ./.env:/app/.env:ro
+    environment:
+      LOG_LEVEL: DEBUG

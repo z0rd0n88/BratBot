@@ -1,0 +1,2 @@
+# Normalize line endings to LF on checkout (prevents CRLF issues in Docker)
+* text=auto eol=lf
