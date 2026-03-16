@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     # Required — no defaults, crash if missing
     discord_bot_token: str
     discord_client_id: str
+    discord_public_key: str  # Ed25519 key for verifying Discord interaction signatures
     llm_api_url: str  # Base URL of the LLM server (e.g. http://localhost:8000)
     database_url: str
     redis_url: str

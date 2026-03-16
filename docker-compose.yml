@@ -15,6 +15,8 @@ services:
         condition: service_healthy
       ollama:
         condition: service_healthy
+    ports:
+      - "8000:8000"
     restart: unless-stopped
 
   ollama:

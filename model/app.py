@@ -61,6 +61,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# Discord interactions endpoint (signature-verified)
+from interactions import interactions_router  # noqa: E402
+
+app.include_router(interactions_router)
+
 
 # ---------------------------------------------------------------------------
 # Request / response models
