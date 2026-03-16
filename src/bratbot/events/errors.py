@@ -94,15 +94,25 @@ class ErrorHandlerCog(commands.Cog):
         if isinstance(error, app_commands.CommandNotFound):
             return NOT_FOUND_ERROR
 
-        # Anthropic API errors — check by module name to avoid hard import dependency
-        if type(original).__module__.startswith("anthropic"):
-            error_type = type(original).__name__
-            log.error("anthropic_api_error", error_type=error_type, error=str(original))
-            if "authentication" in str(original).lower() or "auth" in error_type.lower():
-                return "My brain credentials are broken. Someone tell my owner."
-            if "rate" in str(original).lower():
-                return "I'm thinking too much. Give me a minute."
+        # LLM client errors
+        from bratbot.services.llm_client import (
+            LLMConnectionError,
+            LLMError,
+            LLMServerError,
+            LLMTimeoutError,
+            LLMValidationError,
+        )
+
+        if isinstance(original, LLMConnectionError):
+            return "My brain is offline. Someone probably tripped over the server cable."
+        if isinstance(original, LLMTimeoutError):
+            return "I lost my train of thought. Try again, I guess."
+        if isinstance(original, LLMServerError):
             return "My brain had a hiccup. Try again."
+        if isinstance(original, LLMValidationError):
+            return "That doesn't make sense. Even for you."
+        if isinstance(original, LLMError):
+            return "Something went wrong with my thinking process. Weird."
 
         # Database errors
         if type(original).__name__ == "OperationalError":

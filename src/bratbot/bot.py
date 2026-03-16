@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import pkgutil
 import sys
@@ -8,6 +10,9 @@ from discord.ext import commands
 
 from bratbot.config import settings
 from bratbot.models.base import close_db, init_db
+from bratbot.services.llm_client import LLMClient
+from bratbot.services.rate_limiter import RateLimiter
+from bratbot.services.request_queue import RequestQueue
 from bratbot.utils.logger import get_logger
 from bratbot.utils.redis import close_redis, get_redis
 
@@ -18,6 +23,10 @@ _COG_PACKAGES = ("bratbot.commands", "bratbot.events")
 
 
 class BratBot(commands.Bot):
+    llm_client: LLMClient
+    request_queue: RequestQueue
+    rate_limiter: RateLimiter
+
     def __init__(self) -> None:
         intents = discord.Intents.default()
         intents.guilds = True
@@ -33,8 +42,24 @@ class BratBot(commands.Bot):
         log.info("database_initialized")
 
         # Initialize Redis
-        await get_redis(settings.redis_url)
+        redis = await get_redis(settings.redis_url)
         log.info("redis_initialized")
+
+        # Initialize LLM client
+        self.llm_client = LLMClient(
+            base_url=settings.llm_api_url,
+            default_brat_level=settings.llm_brat_level,
+            timeout=settings.llm_timeout_seconds,
+        )
+        healthy = await self.llm_client.health_check()
+        if healthy:
+            log.info("llm_server_healthy", url=settings.llm_api_url)
+        else:
+            log.warning("llm_server_unhealthy", url=settings.llm_api_url)
+
+        # Initialize services
+        self.request_queue = RequestQueue()
+        self.rate_limiter = RateLimiter(redis)
 
         # Auto-discover and load all extensions
         await self._load_extensions()
@@ -99,6 +124,8 @@ class BratBot(commands.Bot):
         loop.set_exception_handler(_async_exception_handler)
 
     async def close(self) -> None:
+        if hasattr(self, "llm_client"):
+            await self.llm_client.close()
         await close_redis()
         await close_db()
         log.info("connections_closed")

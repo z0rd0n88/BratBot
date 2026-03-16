@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -7,13 +8,14 @@ class Settings(BaseSettings):
     # Required — no defaults, crash if missing
     discord_bot_token: str
     discord_client_id: str
-    anthropic_api_key: str
+    llm_api_url: str  # Base URL of the LLM server (e.g. http://localhost:8000)
     database_url: str
     redis_url: str
 
     # Optional with defaults
     log_level: str = "INFO"
     guild_id: int | None = None  # Set for dev guild-sync (instant), None for global sync
+    llm_brat_level: int = Field(default=3, ge=1, le=5)  # Default brat attitude 1-5
 
     # Rate limiting
     rate_limit_user_seconds: int = 5

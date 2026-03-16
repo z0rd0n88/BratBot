@@ -1,0 +1,99 @@
+"""Async HTTP client for the custom LLM server API."""
+
+from __future__ import annotations
+
+import httpx
+
+from bratbot.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Error hierarchy
+# ---------------------------------------------------------------------------
+
+class LLMError(Exception):
+    """Base exception for LLM client errors."""
+
+
+class LLMConnectionError(LLMError):
+    """Server unreachable or connection failed."""
+
+
+class LLMTimeoutError(LLMError):
+    """Request timed out."""
+
+
+class LLMServerError(LLMError):
+    """Server returned a 5xx response."""
+
+
+class LLMValidationError(LLMError):
+    """Server returned a 4xx response (bad request)."""
+
+
+# ---------------------------------------------------------------------------
+# Client
+# ---------------------------------------------------------------------------
+
+class LLMClient:
+    """Wraps the LLM server's ``/health`` and ``/chat`` endpoints."""
+
+    def __init__(self, base_url: str, default_brat_level: int, timeout: float) -> None:
+        self._client = httpx.AsyncClient(
+            base_url=base_url,
+            timeout=httpx.Timeout(timeout, connect=5.0),
+        )
+        self._default_brat_level = default_brat_level
+
+    async def health_check(self) -> bool:
+        """Return ``True`` if the LLM server is healthy (model loaded)."""
+        try:
+            resp = await self._client.get("/health")
+            return resp.status_code == 200
+        except httpx.HTTPError:
+            return False
+
+    async def chat(self, message: str, brat_level: int | None = None) -> dict:
+        """Send a message and return the server's response dict.
+
+        Returns:
+            ``{"request_id": ..., "brat_level": ..., "reply": ...}``
+
+        Raises:
+            LLMConnectionError: Server unreachable.
+            LLMTimeoutError: Request timed out.
+            LLMServerError: 5xx response.
+            LLMValidationError: 4xx response.
+        """
+        payload = {
+            "message": message[:2000],
+            "brat_level": brat_level if brat_level is not None else self._default_brat_level,
+        }
+
+        try:
+            resp = await self._client.post("/chat", json=payload)
+        except httpx.ConnectError as exc:
+            raise LLMConnectionError("LLM server unreachable") from exc
+        except httpx.TimeoutException as exc:
+            raise LLMTimeoutError("LLM request timed out") from exc
+        except httpx.HTTPError as exc:
+            raise LLMConnectionError(str(exc)) from exc
+
+        if resp.status_code >= 500:
+            raise LLMServerError(f"LLM server error: {resp.status_code}")
+        if resp.status_code >= 400:
+            raise LLMValidationError(f"LLM bad request: {resp.status_code}")
+
+        data = resp.json()
+        log.debug(
+            "llm_chat_response",
+            request_id=data.get("request_id"),
+            brat_level=data.get("brat_level"),
+        )
+        return data
+
+    async def close(self) -> None:
+        """Close the underlying HTTP client."""
+        await self._client.aclose()
