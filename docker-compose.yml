@@ -1,13 +1,43 @@
 services:
-  bot:
+  app:
     build: .
     env_file: .env
+    environment:
+      LLM_API_URL: http://localhost:8000
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3-14b}
+      DATABASE_URL: postgresql+asyncpg://bratbot:bratbot@db:5432/bratbot
+      REDIS_URL: redis://redis:6379/0
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ollama:
+        condition: service_healthy
     restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+      - ${LLM_MODELS_DIR:-./}:/models:ro
+      - ./Modelfile:/models/Modelfile:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
 
   db:
     image: postgres:16-alpine
@@ -37,3 +67,4 @@ services:
 
 volumes:
   pgdata:
+  ollama_data:

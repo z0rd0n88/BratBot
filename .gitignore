@@ -22,5 +22,9 @@ alembic/versions/*.pyc
 .claude/
 
 # Large model files
-model/
 *.gguf
+model/*.gguf
+
+# Track model service files
+!model/app.py
+!model/requirements.txt

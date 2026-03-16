@@ -1,7 +1,7 @@
 [project]
 name = "bratbot"
 version = "0.1.0"
-description = "A bratty, condescending Discord bot powered by Claude"
+description = "A bratty, condescending Discord bot powered by a self-hosted LLM via Ollama"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
