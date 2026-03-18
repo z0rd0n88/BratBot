@@ -32,6 +32,16 @@ Discord bot with a bratty, condescending personality, powered by a self-hosted L
 - RunPod config lives in `.env.runpod` (see `.env.runpod.example`)
 - Two Dockerfiles: `Dockerfile` (Compose, Ollama separate) / `Dockerfile.runpod` (all-in-one with Ollama)
 
+## WSL Development
+
+Windows+WSL setup is verified to work correctly:
+- Git is configured with `core.autocrlf=true` (CRLF on disk → LF in working directory)
+- `.gitattributes` enforces `eol=lf` for all text files, especially shell scripts
+- All deployment scripts (`scripts/deploy-runpod.sh`, `scripts/runpod-entrypoint.sh`) use proper LF line endings
+- Quick verification: `wsl bash scripts/deploy-runpod.sh help` (should display help without errors)
+
+No special WSL configuration is needed — just clone and run `./scripts/deploy-runpod.sh update` from bash/WSL.
+
 ## Conventions
 
 - Python 3.12, Ruff for linting and formatting (line-length 100)

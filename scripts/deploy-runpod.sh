@@ -151,6 +151,54 @@ cmd_push() {
     info "Pushing ${FULL_IMAGE}..."
     docker push "${FULL_IMAGE}"
     ok "Image pushed: ${FULL_IMAGE}"
+
+    # Ensure the GHCR package is public so RunPod can pull it
+    cmd_make_public
+}
+
+cmd_make_public() {
+    local pkg_name
+    pkg_name=$(echo "${REGISTRY_IMAGE}" | sed 's|.*/||')  # e.g. "bratbot" from "ghcr.io/z0rd0n88/bratbot"
+
+    # Only applies to ghcr.io packages
+    if [[ "${REGISTRY_IMAGE}" != ghcr.io/* ]]; then
+        return
+    fi
+
+    if ! command -v gh &>/dev/null; then
+        warn "gh CLI not found — cannot set package visibility."
+        echo "Install gh (https://cli.github.com) or set visibility manually:"
+        echo "  https://github.com/users/$(echo "${REGISTRY_IMAGE}" | cut -d/ -f2)/packages/container/${pkg_name}/settings"
+        return
+    fi
+
+    local owner
+    owner=$(echo "${REGISTRY_IMAGE}" | cut -d/ -f2)
+
+    # Check current visibility via API
+    local current_visibility
+    current_visibility=$(MSYS_NO_PATHCONV=1 gh api "/user/packages/container/${pkg_name}" \
+        --jq '.visibility' 2>/dev/null || echo "unknown")
+
+    if [ "${current_visibility}" = "public" ]; then
+        ok "Package ghcr.io/${owner}/${pkg_name} is already public."
+        return
+    fi
+
+    # GHCR container visibility can't be changed via REST API — open the settings page
+    local settings_url="https://github.com/users/${owner}/packages/container/package/${pkg_name}/settings"
+    warn "Package is currently '${current_visibility}'. GHCR requires the web UI to change visibility."
+    echo "Opening: ${settings_url}"
+    echo "  → Under 'Danger Zone', click 'Change visibility' and select 'Public'."
+
+    # Try to open the browser automatically
+    if command -v xdg-open &>/dev/null; then
+        xdg-open "${settings_url}" 2>/dev/null
+    elif command -v start &>/dev/null; then
+        start "${settings_url}" 2>/dev/null
+    elif command -v open &>/dev/null; then
+        open "${settings_url}" 2>/dev/null
+    fi
 }
 
 cmd_switch_model() {
@@ -288,6 +336,7 @@ cmd_help() {
     echo "Commands:"
     echo "  build                        Build the Docker image"
     echo "  push                         Push the image to registry"
+    echo "  make-public                  Make the GHCR package public"
     echo "  switch-model <name> [--gguf] Switch the active Ollama model on the pod"
     echo "  update                       Full deploy: build, push, restart"
     echo "  ssh                          SSH into the pod"
@@ -308,6 +357,7 @@ cmd_help() {
 case "${1:-help}" in
     build)         cmd_build ;;
     push)          cmd_push ;;
+    make-public)   cmd_make_public ;;
     switch-model)  shift; cmd_switch_model "$@" ;;
     update)        cmd_update ;;
     ssh)           cmd_ssh ;;
