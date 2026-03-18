@@ -56,17 +56,38 @@ async def ask(interaction: discord.Interaction, question: str) -> None:
 **Behavior:**
 - Check Redis for current request count
 - If allowed: increment counter, set TTL, execute command
-- If blocked: send bratty response, don't execute
-- If Redis error: log warning, allow command (graceful degradation)
+- If blocked: send bratty response, don't execute command
+- If Redis error: log warning, allow command to proceed without rate limiting (graceful degradation — ensures the bot remains functional if Redis becomes unavailable)
 
 ### 2. Redis Client
 
 **Location:** `src/bratbot/redis_client.py`
 
 **Responsibilities:**
-- Initialize async Redis connection from `REDIS_URL`
-- Provide helper methods: `check_limit()`, `increment_counter()`, `reset_counter()`
+- Initialize async Redis connection from `REDIS_URL` at bot startup (module-level singleton)
+- Provide helper methods (see below)
 - Handle connection errors gracefully
+
+**Method Signatures:**
+
+```python
+async def check_limit(user_id: int, max_calls: int, time_window: int) -> bool:
+    """
+    Check if user is within rate limit.
+    Returns True if user can proceed, False if rate limited.
+    """
+
+async def increment_and_set_ttl(user_id: int, time_window: int) -> None:
+    """
+    Increment request counter and set/reset TTL for the window.
+    Atomically increments the counter and ensures TTL is set.
+    """
+
+async def get_client() -> redis.asyncio.Redis:
+    """Return the shared Redis client instance (singleton)."""
+```
+
+The decorator accesses the Redis client via `redis_client.get_client()` import, ensuring a single connection is reused throughout the bot's lifetime.
 
 ### 3. Bratty Responses
 
@@ -125,6 +146,7 @@ Query Redis: GET rate_limit:discord:<user_id>
 - User runs 6th command within 60s → blocked, gets bratty response
 - User waits 60s, runs command → executes (key expired)
 - Redis connection fails → commands still work
+- Two concurrent requests from same user within window → both INCR correctly (atomicity test)
 
 ## Implementation Order
 
