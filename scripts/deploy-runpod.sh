@@ -40,7 +40,9 @@ is_wsl() {
 REGISTRY_IMAGE="${REGISTRY_IMAGE:-ghcr.io/your-org/bratbot}"
 IMAGE_TAG="${IMAGE_TAG:-runpod-latest}"
 RUNPOD_POD_ID="${RUNPOD_POD_ID:-}"
+RUNPOD_SSH_USER="${RUNPOD_SSH_USER:-}"  # Full SSH user (e.g., pod-id-sessiontoken)
 RUNPOD_SSH_PORT="${RUNPOD_SSH_PORT:-22}"
+RUNPOD_SSH_HOST="${RUNPOD_SSH_HOST:-ssh.runpod.io}"
 
 # In WSL, fall back to the Windows SSH key if the WSL-local key is missing
 if [ -z "${RUNPOD_SSH_KEY:-}" ]; then
@@ -104,17 +106,29 @@ preflight_ssh() {
         exit 1
     fi
 
-    # Verify DNS can resolve the RunPod hostname
-    if [ -n "${RUNPOD_POD_ID}" ]; then
-        local host="${RUNPOD_SSH_HOST:-${RUNPOD_POD_ID}-ssh.runpod.io}"
-        if ! getent hosts "${host}" &>/dev/null; then
-            err "Cannot resolve hostname: ${host}"
+    # Verify DNS can resolve the RunPod hostname (try multiple methods)
+    if [ -n "${RUNPOD_SSH_USER}" ]; then
+        local dns_ok=false
+        # Try getent first (preferred, cleaner output)
+        if command -v getent &>/dev/null; then
+            getent hosts "${RUNPOD_SSH_HOST}" &>/dev/null && dns_ok=true
+        # Fall back to nslookup
+        elif command -v nslookup &>/dev/null; then
+            nslookup "${RUNPOD_SSH_HOST}" &>/dev/null && dns_ok=true
+        # Fall back to host
+        elif command -v host &>/dev/null; then
+            host "${RUNPOD_SSH_HOST}" &>/dev/null && dns_ok=true
+        # Last resort: try opening TCP connection
+        else
+            timeout 2 bash -c "echo > /dev/tcp/${RUNPOD_SSH_HOST}/22" &>/dev/null && dns_ok=true
+        fi
+
+        if [ "${dns_ok}" = false ]; then
+            err "Cannot resolve hostname: ${RUNPOD_SSH_HOST}"
             if is_wsl; then
-                echo "WSL DNS is not working. Fix it with:"
-                echo "  echo 'nameserver 8.8.8.8' | sudo tee /etc/resolv.conf"
-                echo "To persist across WSL restarts, add to /etc/wsl.conf:"
-                echo "  [network]"
-                echo "  generateResolvConf = false"
+                echo "WSL DNS may not be working. In WSL, you can use:"
+                echo "  nslookup ssh.runpod.io"
+                echo "If that fails, DNS needs configuration (see CLAUDE.md WSL section)"
             fi
             exit 1
         fi
@@ -125,14 +139,25 @@ preflight_ssh() {
 pod_ssh() {
     require_pod_id
     preflight_ssh
-    # RunPod SSH format: root@<pod-id>-ssh.runpod.io or via runpodctl
-    local host="${RUNPOD_SSH_HOST:-${RUNPOD_POD_ID}-ssh.runpod.io}"
-    ssh -i "${RUNPOD_SSH_KEY}" \
+
+    if [ -z "${RUNPOD_SSH_USER}" ]; then
+        err "RUNPOD_SSH_USER is not set."
+        echo "Set it in .env.runpod with the full SSH user identifier:"
+        echo "  RUNPOD_SSH_USER=pod-id-sessiontoken"
+        echo "Example: RUNPOD_SSH_USER=lvgn83xrikynaw-64411dcb"
+        echo ""
+        echo "Get this from your RunPod connection string:"
+        echo "  ssh <RUNPOD_SSH_USER>@${RUNPOD_SSH_HOST} -i ~/.ssh/id_ed25519"
+        exit 1
+    fi
+
+    # RunPod SSH format: <pod-id-sessiontoken>@ssh.runpod.io
+    ssh -T -i "${RUNPOD_SSH_KEY}" \
         -o StrictHostKeyChecking=no \
         -o UserKnownHostsFile=/dev/null \
         -o LogLevel=ERROR \
         -p "${RUNPOD_SSH_PORT}" \
-        "root@${host}" \
+        "${RUNPOD_SSH_USER}@${RUNPOD_SSH_HOST}" \
         "$@"
 }
 
