@@ -17,8 +17,8 @@ Discord bot with a bratty, condescending personality, powered by a self-hosted L
 
 - `uv sync --all-extras` — install all dependencies including dev
 - `uv run pytest tests/ -v` — run tests
-- `uv run ruff check src/ model/` — lint
-- `uv run ruff format src/ model/` — format
+- `uv run ruff check src/ model/ sms/` — lint
+- `uv run ruff format src/ model/ sms/` — format
 - `docker compose up` — run full stack
 
 ## Deployment

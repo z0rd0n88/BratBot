@@ -27,6 +27,15 @@ model = [
     "httpx>=0.28,<1.0",
     "PyNaCl>=1.5,<2.0",
 ]
+sms = [
+    "fastapi>=0.110,<1.0",
+    "uvicorn>=0.29,<1.0",
+    "httpx>=0.28,<1.0",
+    "redis>=5.2,<6.0",
+    "twilio>=9.0,<10.0",
+    "pydantic-settings>=2.7,<3.0",
+    "python-multipart>=0.0.9",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -38,7 +47,7 @@ packages = ["src/bratbot"]
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-src = ["src"]
+src = ["src", "sms", "model"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
