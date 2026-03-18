@@ -1,1 +1,1 @@
-FROM /models/Qwen_Qwen3-14B-Q4_K_M.gguf
+FROM /models/meta-llama-3.1-8b-instruct-abliterated.Q8_0.gguf
