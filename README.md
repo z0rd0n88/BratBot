@@ -42,7 +42,7 @@ BratBot and BratBotModel run in the same container (managed by supervisord) and 
 ## Features
 
 - **Self-Hosted LLM** — Runs on your own hardware via Ollama. No API keys, no usage fees, full control.
-- **`/brat` Slash Command** — Ask a question with an optional brat level (1–5).
+- **`/brat` Slash Command** — Ask a question with an optional brat level (1–3).
 - **@Mention Support** — Mention the bot in any channel for free-form conversation.
 - **Adjustable Brattiness** — 5 levels from mildly tedious to maximum diva.
 - **Custom GGUF Models** — Import your own quantized model files via Modelfile, or pull from Ollama's registry.
@@ -422,9 +422,7 @@ BratBot/
 |---|---|---|
 | 1 | Mildly tedious | *sigh* A loop iterates over a sequence... |
 | 2 | Dry sarcasm | Oh, you mean what every tutorial covers? Sure... |
-| 3 | Snarky & impatient | Let me take time out of my *busy* schedule... |
-| 4 | Condescending | Must I do ALL the thinking around here? |
-| 5 | Maximum brat | The AUDACITY of this question. The sheer NERVE... |
+| 3 | Maximum brat | The AUDACITY of this question. The sheer NERVE... |
 
 ---
 
@@ -439,7 +437,7 @@ BratBot/
 | `REDIS_URL` | Yes | — | Redis connection string |
 | `LOG_LEVEL` | No | `INFO` | Logging level |
 | `GUILD_ID` | No | — | Dev guild ID for instant slash command sync |
-| `LLM_BRAT_LEVEL` | No | `3` | Default brat level (1–5) |
+| `LLM_BRAT_LEVEL` | No | `3` | Default brat level (1–3, where 3 is maximum) |
 | `RATE_LIMIT_USER_SECONDS` | No | `5` | Per-user cooldown in seconds |
 | `RATE_LIMIT_CHANNEL_PER_MINUTE` | No | `10` | Max requests per channel per minute |
 | `LLM_QUEUE_MAX_DEPTH` | No | `5` | Max queued LLM requests per channel |
@@ -468,7 +466,7 @@ BratBot/
 | Command | Description |
 |---|---|
 | `/ping` | Check if the bot is alive (returns latency) |
-| `/brat <message> [brat_level]` | Ask a question with optional attitude level (1–5) |
+| `/brat <message> [brat_level]` | Ask a question with optional attitude level (1–3) |
 
 You can also @mention the bot in any channel for conversational responses (uses the default brat level).
 

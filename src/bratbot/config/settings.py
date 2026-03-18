@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     # Optional with defaults
     log_level: str = "INFO"
     guild_id: int | None = None  # Set for dev guild-sync (instant), None for global sync
-    llm_brat_level: int = Field(default=3, ge=1, le=5)  # Default brat attitude 1-5
+    llm_brat_level: int = Field(default=3, ge=1, le=3)  # Default brat attitude 1-3
 
     # Rate limiting
     rate_limit_user_seconds: int = 5

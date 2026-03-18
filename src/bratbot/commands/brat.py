@@ -29,13 +29,13 @@ class BratCog(commands.Cog):
     @app_commands.command(name="brat", description="Ask the brat a question")
     @app_commands.describe(
         message="What do you want to say?",
-        brat_level="How bratty? (1-5, default: server setting)",
+        brat_level="How bratty? (1-3, default: server setting)",
     )
     async def brat(
         self,
         interaction: discord.Interaction,
         message: str,
-        brat_level: app_commands.Range[int, 1, 5] | None = None,
+        brat_level: app_commands.Range[int, 1, 3] | None = None,
     ) -> None:
         # Rate limit check
         guild_id = interaction.guild_id or 0
