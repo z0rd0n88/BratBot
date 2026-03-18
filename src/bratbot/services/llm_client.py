@@ -38,7 +38,7 @@ class LLMValidationError(LLMError):
 # ---------------------------------------------------------------------------
 
 class LLMClient:
-    """Wraps the LLM server's ``/health`` and ``/chat`` endpoints."""
+    """Wraps the LLM server's ``/health`` and ``/bratchat`` endpoints."""
 
     def __init__(self, base_url: str, default_brat_level: int, timeout: float) -> None:
         self._client = httpx.AsyncClient(
@@ -73,7 +73,7 @@ class LLMClient:
         }
 
         try:
-            resp = await self._client.post("/chat", json=payload)
+            resp = await self._client.post("/bratchat", json=payload)
         except httpx.ConnectError as exc:
             raise LLMConnectionError("LLM server unreachable") from exc
         except httpx.TimeoutException as exc:

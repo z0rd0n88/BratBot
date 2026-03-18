@@ -39,7 +39,7 @@ Powered by a self-hosted LLM (via Ollama) with a custom personality API layer.
                     └──────────────┘
 ```
 
-**Data flow:** Discord message → BratBot → `POST localhost:8000/chat` → BratBotModel → Ollama `/api/chat` → LLM inference → bratty reply → Discord
+**Data flow:** Discord message → BratBot → `POST localhost:8000/bratchat` → BratBotModel → Ollama `/api/chat` → LLM inference → bratty reply → Discord
 
 BratBot and BratBotModel run in the same container (managed by supervisord) and communicate via `localhost:8000`. Ollama runs as a separate GPU-enabled service. Redis provides rate limiting.
 

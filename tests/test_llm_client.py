@@ -77,7 +77,7 @@ class TestHealthCheck:
 
 
 # ---------------------------------------------------------------------------
-# POST /chat — happy path
+# POST /bratchat — happy path
 # ---------------------------------------------------------------------------
 
 
@@ -104,7 +104,7 @@ class TestChatHappyPath:
         await llm_client.chat("test msg", brat_level=2)
 
         assert captured["method"] == "POST"
-        assert captured["path"] == "/chat"
+        assert captured["path"] == "/bratchat"
         assert captured["body"] == {"message": "test msg", "brat_level": 2}
 
     async def test_chat_uses_default_brat_level(self, llm_client: LLMClient) -> None:
@@ -151,7 +151,7 @@ class TestChatHappyPath:
 
 
 # ---------------------------------------------------------------------------
-# POST /chat — message edge cases (server accepts 1–2000 chars)
+# POST /bratchat — message edge cases (server accepts 1–2000 chars)
 # ---------------------------------------------------------------------------
 
 
@@ -210,7 +210,7 @@ class TestChatMessageEdgeCases:
 
 
 # ---------------------------------------------------------------------------
-# POST /chat — error responses
+# POST /bratchat — error responses
 # ---------------------------------------------------------------------------
 
 

@@ -102,7 +102,7 @@ def get_system_prompt(level: int) -> str:
             "regret asking it."
         ),
     }
-    return prompts.get(level, prompts[5])
+    return prompts.get(level, prompts[3])
 
 
 # ---------------------------------------------------------------------------
@@ -135,8 +135,8 @@ async def health():
     return {"status": "ok"}
 
 
-@app.post("/chat")
-async def chat(request: ChatRequest):
+@app.post("/bratchat")
+async def bratchat(request: ChatRequest):
     """Send a message to the LLM via Ollama and return a bratty response."""
     if _http_client is None:
         raise HTTPException(status_code=503, detail="HTTP client not initialized")

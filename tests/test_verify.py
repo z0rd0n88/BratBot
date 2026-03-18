@@ -129,7 +129,7 @@ class TestSignatureVerification:
 
 
 class TestInternalEndpointsUnaffected:
-    """Verify that /health and /chat don't require Discord signatures."""
+    """Verify that /health and /bratchat don't require Discord signatures."""
 
     def test_health_no_signature_needed(self, client):
         resp = client.get("/health")
