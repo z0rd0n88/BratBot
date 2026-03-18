@@ -29,3 +29,7 @@ model/*.gguf
 # Track model service files
 !model/app.py
 !model/requirements.txt
+
+# Claude Code configuration
+.claude/
+CLAUDE.md
