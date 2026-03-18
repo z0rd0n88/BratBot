@@ -37,14 +37,15 @@ async def lifespan(app: FastAPI):
     """Check Ollama connectivity on startup; create shared HTTP client."""
     global _http_client
 
-    _http_client = httpx.AsyncClient(
+    client = httpx.AsyncClient(
         base_url=OLLAMA_BASE_URL,
         timeout=httpx.Timeout(300.0, connect=10.0),
     )
+    _http_client = client
 
     # Verify Ollama is reachable
     try:
-        resp = await _http_client.get("/")
+        resp = await client.get("/")
         if resp.status_code == 200:
             logger.info("Ollama reachable at %s", OLLAMA_BASE_URL)
         else:
@@ -55,7 +56,7 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    await _http_client.aclose()
+    await client.aclose()
     _http_client = None
 
 

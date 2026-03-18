@@ -20,6 +20,13 @@ dev = [
     "pytest>=8.3,<9.0",
     "pytest-asyncio>=0.24,<1.0",
 ]
+model = [
+    "fastapi>=0.110,<1.0",
+    "uvicorn>=0.29,<1.0",
+    "pydantic>=2.6,<3.0",
+    "httpx>=0.28,<1.0",
+    "PyNaCl>=1.5,<2.0",
+]
 
 [build-system]
 requires = ["hatchling"]
