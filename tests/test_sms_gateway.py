@@ -295,3 +295,67 @@ class TestEdgeCases:
         call_kwargs = twilio_mock.messages.create.call_args[1]
         assert len(call_kwargs["body"]) == 1600
         await http_client.aclose()
+
+
+# ---------------------------------------------------------------------------
+# Keyword prefix routing (bratchat vs camichat)
+# ---------------------------------------------------------------------------
+
+
+class TestRouting:
+    async def test_default_routes_to_bratchat(self, sms_client):
+        """No prefix — routes to /bratchat with brat_level."""
+        client, _, captured = sms_client
+        await _post_incoming(client, body="hello")
+        assert len(captured) == 1
+        assert captured[0].url.path == "/bratchat"
+        payload = json.loads(captured[0].content)
+        assert payload["message"] == "hello"
+        assert payload["brat_level"] == sms_settings.llm_brat_level
+
+    async def test_cami_prefix_routes_to_camichat(self, sms_client):
+        """'cami: ...' routes to /camichat without brat_level."""
+        client, _, captured = sms_client
+        await _post_incoming(client, body="cami: hello there")
+        assert len(captured) == 1
+        assert captured[0].url.path == "/camichat"
+        payload = json.loads(captured[0].content)
+        assert payload["message"] == "hello there"
+        assert "brat_level" not in payload
+
+    async def test_brat_prefix_routes_to_bratchat(self, sms_client):
+        """'brat: ...' explicitly routes to /bratchat."""
+        client, _, captured = sms_client
+        await _post_incoming(client, body="brat: roast me")
+        assert len(captured) == 1
+        assert captured[0].url.path == "/bratchat"
+        payload = json.loads(captured[0].content)
+        assert payload["message"] == "roast me"
+        assert payload["brat_level"] == sms_settings.llm_brat_level
+
+    async def test_cami_prefix_case_insensitive(self, sms_client):
+        """Prefix matching is case-insensitive."""
+        client, _, captured = sms_client
+        await _post_incoming(client, body="CAMI: yo")
+        assert len(captured) == 1
+        assert captured[0].url.path == "/camichat"
+        payload = json.loads(captured[0].content)
+        assert payload["message"] == "yo"
+
+    async def test_cami_prefix_no_colon(self, sms_client):
+        """'cami hello' (space, no colon) also routes to /camichat."""
+        client, _, captured = sms_client
+        await _post_incoming(client, body="cami hello")
+        assert len(captured) == 1
+        assert captured[0].url.path == "/camichat"
+        payload = json.loads(captured[0].content)
+        assert payload["message"] == "hello"
+
+    async def test_cami_alone_routes_to_bratchat(self, sms_client):
+        """Just 'cami' with no message goes to /bratchat as a regular message."""
+        client, _, captured = sms_client
+        await _post_incoming(client, body="cami")
+        assert len(captured) == 1
+        assert captured[0].url.path == "/bratchat"
+        payload = json.loads(captured[0].content)
+        assert payload["message"] == "cami"
