@@ -1,26 +1,13 @@
 """Tests for Discord request signature verification and interactions endpoint."""
 
 import json
-import os
-import sys
-from pathlib import Path
 
 import pytest
-from nacl.signing import SigningKey
+from app import app
+from starlette.testclient import TestClient
 
-# Generate a test keypair — the private key signs, the public key verifies
-_signing_key = SigningKey.generate()
-_verify_hex = _signing_key.verify_key.encode().hex()
-
-# Patch env before importing the modules under test
-os.environ["DISCORD_PUBLIC_KEY"] = _verify_hex
-
-# Add model/ to sys.path so its modules are importable (it's not a package)
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "model"))
-
-from starlette.testclient import TestClient  # noqa: E402
-
-from app import app  # noqa: E402
+# conftest.py sets DISCORD_PUBLIC_KEY and adds model/ to sys.path before collection
+from tests.discord_keys import signing_key as _signing_key
 
 
 @pytest.fixture
