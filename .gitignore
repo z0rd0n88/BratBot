@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 .env
 .env.runpod
+sms/.env
 dist/
 *.egg-info/
 .ruff_cache/

@@ -6,7 +6,7 @@
 
 # Brat Bot
 
-A Discord bot that answers questions with configurable levels of attitude. Brat Bot is performatively sassy: always helpful, never without drama. It answers your questions, roasts your phrasing, and makes sure you know it's doing you a favor.
+A bot that answers questions with configurable levels of attitude — on **Discord** and via **SMS/RCS**. Brat Bot is performatively sassy: always helpful, never without drama. It answers your questions, roasts your phrasing, and makes sure you know it's doing you a favor.
 
 Powered by a self-hosted LLM (via Ollama) with a custom personality API layer.
 
@@ -15,33 +15,41 @@ Powered by a self-hosted LLM (via Ollama) with a custom personality API layer.
 ## Architecture
 
 ```
-┌───────────────────────────────────────────────┐
-│         app container (single image)          │
-│                                               │
-│  ┌───────────┐       ┌──────────────────┐     │
-│  │  BratBot  │──────►│  BratBotModel    │     │
-│  │  discord  │ :8000 │  FastAPI + brat   │     │
-│  │  .py bot  │       │  personality      │     │
-│  └───────────┘       └────────┬─────────┘     │
-│                               │               │
-└───────────────────────────────┼───────────────┘
-                                │ :11434
-                    ┌───────────▼───────────┐
-                    │       Ollama          │
-                    │   LLM inference       │
-                    │   (GPU accelerated)   │
-                    └───────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│              app container (single image)                │
+│                                                          │
+│  ┌───────────┐                                           │
+│  │  BratBot  │──────────────────────────►┐              │
+│  │  discord  │                           │              │
+│  │  .py bot  │                           │              │
+│  └───────────┘                           │              │
+│                                          ▼              │
+│  ┌────────────┐       ┌──────────────────────────────┐  │
+│  │ SMS Gateway│──────►│       BratBotModel           │  │
+│  │ FastAPI    │ :8000 │  FastAPI + brat personality  │  │
+│  │ :8001      │       └──────────────┬───────────────┘  │
+│  └────────────┘                      │                  │
+│       ▲                              │                  │
+└───────┼──────────────────────────────┼──────────────────┘
+        │ webhook                      │ :11434
+  ┌─────┴──────┐           ┌───────────▼───────────┐
+  │   Twilio   │           │       Ollama          │
+  │  (SMS/RCS) │           │   LLM inference       │
+  └────────────┘           │   (GPU accelerated)   │
+                           └───────────────────────┘
 
-                    ┌──────────────┐
-                    │    Redis     │
-                    │    :6379     │
-                    │ rate limits  │
-                    └──────────────┘
+                           ┌──────────────┐
+                           │    Redis     │
+                           │    :6379     │
+                           │ rate limits  │
+                           └──────────────┘
 ```
 
-**Data flow:** Discord message → BratBot → `POST localhost:8000/bratchat` → BratBotModel → Ollama `/api/chat` → LLM inference → bratty reply → Discord
+**Discord data flow:** Discord message → BratBot → `POST localhost:8000/bratchat` → BratBotModel → Ollama `/api/chat` → LLM reply → Discord
 
-BratBot and BratBotModel run in the same container (managed by supervisord) and communicate via `localhost:8000`. Ollama runs as a separate GPU-enabled service. Redis provides rate limiting.
+**SMS data flow:** User texts Twilio number → Twilio `POST localhost:8001/incoming` → SMS Gateway → `POST localhost:8000/bratchat` → BratBotModel → Ollama → Twilio REST API → SMS reply
+
+All services run in the same container (managed by supervisord). Ollama runs as a separate GPU-enabled service. Redis provides rate limiting for both Discord and SMS. **SMS is optional** — the gateway starts in disabled mode if Twilio credentials are not set.
 
 ---
 
@@ -50,9 +58,10 @@ BratBot and BratBotModel run in the same container (managed by supervisord) and 
 - **Self-Hosted LLM** — Runs on your own hardware via Ollama. No API keys, no usage fees, full control.
 - **`/brat` Slash Command** — Ask a question with an optional brat level (1–3).
 - **@Mention Support** — Mention the bot in any channel for free-form conversation.
+- **SMS/RCS Support** — Text the bot via any phone number (Twilio). Works on Android and iPhone.
 - **Adjustable Brattiness** — 5 levels from mildly tedious to maximum diva.
 - **Custom GGUF Models** — Import your own quantized model files via Modelfile, or pull from Ollama's registry.
-- **Rate Limiting** — Per-user cooldowns and per-channel rate limits via Redis.
+- **Rate Limiting** — Per-user cooldowns and per-channel rate limits via Redis (shared across Discord and SMS).
 - **Request Queue** — Per-channel async queue prevents overlapping LLM responses.
 - **Structured Logging** — JSON logs in production, colored console in development.
 - **Global Error Handling** — In-character error messages for every failure mode.
@@ -181,6 +190,7 @@ RunPod GPU Pod (stateless)
 ├── supervisord
 │   ├── ollama serve          (GPU, port 11434)
 │   ├── model (uvicorn)       (port 8000)
+│   ├── sms (uvicorn)         (port 8001, optional)
 │   └── bot (discord.py)      (outbound WebSocket)
 └── /workspace (Network Volume)
     ├── models/Qwen_Qwen3-14B-Q4_K_M.gguf
@@ -229,7 +239,7 @@ In the RunPod console, create a Pod Template:
 - **GPU:** RTX 3070 for small models, RTX A4000 for 14B (see table below)
 - **Container Disk:** 20 GB
 - **Volume:** Attach your network volume at `/workspace`
-- **Exposed Ports:** `8000/http` (only needed for the Discord interactions webhook)
+- **Exposed Ports:** `8000/http` (Discord interactions webhook), `8001/http` (SMS webhook, optional)
 - **Environment Variables:**
 
 | Variable | Value |
@@ -314,9 +324,9 @@ Switch models on a running pod without rebuilding or restarting the pod:
 
 | Service | Image | Ports | Purpose |
 |---|---|---|---|
-| `app` | Built from Dockerfile | 8000 (internal) | BratBot + BratBotModel |
+| `app` | Built from Dockerfile | 8000, 8001 | BratBot (Discord) + BratBotModel + SMS Gateway |
 | `ollama` | `ollama/ollama` | 11434 | LLM inference (GPU) |
-| `redis` | `redis:7-alpine` | 6379 | Rate limits, caching |
+| `redis` | `redis:7-alpine` | 6379 | Rate limits (shared by Discord and SMS) |
 
 ---
 
@@ -380,6 +390,11 @@ BratBot/
   model/
     app.py                    # BratBotModel FastAPI app (personality API)
     requirements.txt          # Model API dependencies
+  sms/
+    app.py                    # SMS Gateway FastAPI app (Twilio webhook receiver)
+    settings.py               # pydantic-settings for SMS configuration
+    requirements.txt          # SMS Gateway dependencies
+    .env.example              # SMS environment variable template
   src/
     bratbot/
       __main__.py             # Entry point
@@ -420,6 +435,8 @@ BratBot/
 
 ## Environment Variables
 
+### Discord / Core (`.env`)
+
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `DISCORD_BOT_TOKEN` | Yes | — | Bot token from Discord Developer Portal |
@@ -437,6 +454,22 @@ BratBot/
 | `OLLAMA_MODEL` | No | `qwen3-14b` | Ollama model name |
 | `LLM_MODELS_DIR` | No | — | Host path to GGUF model files (mounted into Ollama at `/models`) |
 
+### SMS Gateway (`sms/.env`)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `TWILIO_ACCOUNT_SID` | Yes* | — | Twilio Account SID (enables SMS) |
+| `TWILIO_AUTH_TOKEN` | Yes* | — | Twilio Auth Token |
+| `TWILIO_PHONE_NUMBER` | Yes* | — | Your Twilio phone number (E.164 format) |
+| `LLM_API_URL` | No | `http://localhost:8000` | BratBotModel URL |
+| `REDIS_URL` | No | `redis://redis:6379/0` | Redis connection string |
+| `LLM_BRAT_LEVEL` | No | `3` | Brat level for SMS responses (1–3) |
+| `LLM_TIMEOUT_SECONDS` | No | `30` | LLM request timeout |
+| `RATE_LIMIT_USER_SECONDS` | No | `5` | Per-phone-number cooldown in seconds |
+| `TWILIO_SKIP_VALIDATION` | No | `false` | Skip webhook signature check (dev only) |
+
+\* All three Twilio vars are required together. If any are missing, SMS is disabled but the service still starts.
+
 ---
 
 ## Discord Bot Setup
@@ -449,6 +482,59 @@ BratBot/
    - Scopes: `bot`, `applications.commands`
    - Permissions: `Send Messages`, `Embed Links`, `Read Message History`, `Use Slash Commands`
 6. Invite the bot to your server.
+
+---
+
+## SMS Setup (Optional)
+
+SMS is disabled by default. The SMS Gateway starts in disabled mode and returns `503` on `/incoming` if Twilio credentials are not configured. Deploying without SMS configured is fully supported.
+
+### Prerequisites
+
+- A [Twilio account](https://www.twilio.com) (free trial available)
+- A Twilio phone number with SMS capability
+
+### 1. Configure credentials
+
+```bash
+cp sms/.env.example sms/.env
+```
+
+Edit `sms/.env` and fill in:
+
+```env
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=your-auth-token
+TWILIO_PHONE_NUMBER=+1234567890
+```
+
+### 2. Expose port 8001
+
+Your server's port `8001` must be reachable from the internet so Twilio can POST webhooks to it. For RunPod, add `8001/http` to your pod's exposed ports.
+
+### 3. Configure the Twilio webhook
+
+In the [Twilio Console](https://console.twilio.com):
+
+1. Go to **Phone Numbers → Manage → Active Numbers → your number**
+2. Under **Messaging Configuration**, set the webhook URL (HTTP POST) to:
+   ```
+   https://your-server.com:8001/incoming
+   ```
+
+### 4. Verify
+
+```bash
+# Health check — confirms the gateway is running and SMS is enabled
+curl http://localhost:8001/health
+# {"status": "ok", "sms_enabled": true}
+
+# Test without a real Twilio signature (add TWILIO_SKIP_VALIDATION=true to sms/.env)
+curl -X POST http://localhost:8001/incoming \
+  -d "From=%2B15005550006&Body=hello+there"
+```
+
+> **RunPod note:** Add the Twilio env vars directly to your pod template's Environment Variables (same as Discord vars). You do not need to mount `sms/.env` — the service reads from the container environment.
 
 ---
 

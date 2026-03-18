@@ -31,12 +31,26 @@ if [ -f "${PROJECT_DIR}/.env.runpod" ]; then
     set +a
 fi
 
+# ─── Helpers (early, used in defaults) ───────────────────────────────
+is_wsl() {
+    grep -qi microsoft /proc/version 2>/dev/null
+}
+
 # ─── Defaults ────────────────────────────────────────────────────────
 REGISTRY_IMAGE="${REGISTRY_IMAGE:-ghcr.io/your-org/bratbot}"
 IMAGE_TAG="${IMAGE_TAG:-runpod-latest}"
-RUNPOD_SSH_KEY="${RUNPOD_SSH_KEY:-${HOME}/.ssh/id_ed25519}"
 RUNPOD_POD_ID="${RUNPOD_POD_ID:-}"
 RUNPOD_SSH_PORT="${RUNPOD_SSH_PORT:-22}"
+
+# In WSL, fall back to the Windows SSH key if the WSL-local key is missing
+if [ -z "${RUNPOD_SSH_KEY:-}" ]; then
+    if is_wsl && [ ! -f "${HOME}/.ssh/id_ed25519" ]; then
+        _win_user=$(cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r\n')
+        RUNPOD_SSH_KEY="/mnt/c/Users/${_win_user}/.ssh/id_ed25519"
+    else
+        RUNPOD_SSH_KEY="${HOME}/.ssh/id_ed25519"
+    fi
+fi
 
 FULL_IMAGE="${REGISTRY_IMAGE}:${IMAGE_TAG}"
 
@@ -76,9 +90,41 @@ require_pod_id() {
     fi
 }
 
+preflight_ssh() {
+    # Verify the SSH key file exists before attempting a connection
+    if [ ! -f "${RUNPOD_SSH_KEY}" ]; then
+        err "SSH key not found: ${RUNPOD_SSH_KEY}"
+        if is_wsl; then
+            echo "In WSL, your Windows key is mounted at /mnt/c/Users/<Username>/.ssh/"
+            echo "Either set RUNPOD_SSH_KEY in .env.runpod:"
+            echo "  RUNPOD_SSH_KEY=/mnt/c/Users/$(cmd.exe /c 'echo %USERNAME%' 2>/dev/null | tr -d '\r\n')/.ssh/id_ed25519"
+            echo "Or copy it into WSL:"
+            echo "  cp /mnt/c/Users/<Username>/.ssh/id_ed25519 ~/.ssh/ && chmod 600 ~/.ssh/id_ed25519"
+        fi
+        exit 1
+    fi
+
+    # Verify DNS can resolve the RunPod hostname
+    if [ -n "${RUNPOD_POD_ID}" ]; then
+        local host="${RUNPOD_SSH_HOST:-${RUNPOD_POD_ID}-ssh.runpod.io}"
+        if ! getent hosts "${host}" &>/dev/null; then
+            err "Cannot resolve hostname: ${host}"
+            if is_wsl; then
+                echo "WSL DNS is not working. Fix it with:"
+                echo "  echo 'nameserver 8.8.8.8' | sudo tee /etc/resolv.conf"
+                echo "To persist across WSL restarts, add to /etc/wsl.conf:"
+                echo "  [network]"
+                echo "  generateResolvConf = false"
+            fi
+            exit 1
+        fi
+    fi
+}
+
 # Get the SSH connection string for the RunPod pod
 pod_ssh() {
     require_pod_id
+    preflight_ssh
     # RunPod SSH format: root@<pod-id>-ssh.runpod.io or via runpodctl
     local host="${RUNPOD_SSH_HOST:-${RUNPOD_POD_ID}-ssh.runpod.io}"
     ssh -i "${RUNPOD_SSH_KEY}" \

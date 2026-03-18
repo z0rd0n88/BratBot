@@ -1,7 +1,10 @@
 services:
   app:
     build: .
-    env_file: .env
+    env_file:
+      - .env
+      - path: sms/.env
+        required: false
     environment:
       LLM_API_URL: http://localhost:8000
       OLLAMA_BASE_URL: http://ollama:11434
@@ -14,6 +17,7 @@ services:
         condition: service_healthy
     ports:
       - "8000:8000"
+      - "8001:8001"
     restart: unless-stopped
 
   ollama:
