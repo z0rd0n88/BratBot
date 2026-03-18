@@ -25,6 +25,11 @@ CHAT_RESPONSE = {
     "reply": "Oh, you want ME to explain this? Fine.",
 }
 
+CAMI_CHAT_RESPONSE = {
+    "request_id": "cami01",
+    "reply": "Y-yes Daddy, of course...",
+}
+
 
 def _inject_transport(client: LLMClient, handler) -> None:
     """Replace the client's internal httpx transport with a mock handler."""
@@ -37,6 +42,11 @@ def _inject_transport(client: LLMClient, handler) -> None:
 def _ok_chat_handler(request: httpx.Request) -> httpx.Response:
     """Default handler that returns a successful chat response."""
     return httpx.Response(200, json=CHAT_RESPONSE)
+
+
+def _ok_cami_chat_handler(request: httpx.Request) -> httpx.Response:
+    """Default handler that returns a successful cami_chat response."""
+    return httpx.Response(200, json=CAMI_CHAT_RESPONSE)
 
 
 # ---------------------------------------------------------------------------
@@ -268,6 +278,101 @@ class TestChatErrors:
 
         with pytest.raises(LLMConnectionError):
             await llm_client.chat("hello")
+
+
+# ---------------------------------------------------------------------------
+# Client lifecycle
+# ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# POST /camichat — happy path
+# ---------------------------------------------------------------------------
+
+
+class TestCamiChatHappyPath:
+    async def test_cami_chat_basic(self, llm_client: LLMClient) -> None:
+        _inject_transport(llm_client, _ok_cami_chat_handler)
+
+        result = await llm_client.cami_chat("Hello")
+
+        assert result["request_id"] == "cami01"
+        assert "reply" in result
+
+    async def test_cami_chat_sends_correct_payload(self, llm_client: LLMClient) -> None:
+        captured: dict = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["body"] = json.loads(request.content)
+            captured["method"] = request.method
+            captured["path"] = request.url.path
+            return httpx.Response(200, json=CAMI_CHAT_RESPONSE)
+
+        _inject_transport(llm_client, handler)
+        await llm_client.cami_chat("test msg")
+
+        assert captured["method"] == "POST"
+        assert captured["path"] == "/camichat"
+        assert captured["body"] == {"message": "test msg"}
+
+    async def test_cami_chat_no_brat_level_in_payload(self, llm_client: LLMClient) -> None:
+        """cami_chat should never send a brat_level field."""
+        captured: dict = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["body"] = json.loads(request.content)
+            return httpx.Response(200, json=CAMI_CHAT_RESPONSE)
+
+        _inject_transport(llm_client, handler)
+        await llm_client.cami_chat("hi")
+
+        assert "brat_level" not in captured["body"]
+
+    async def test_cami_chat_truncates_at_2000_chars(self, llm_client: LLMClient) -> None:
+        captured: dict = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["body"] = json.loads(request.content)
+            return httpx.Response(200, json=CAMI_CHAT_RESPONSE)
+
+        _inject_transport(llm_client, handler)
+        await llm_client.cami_chat("x" * 3000)
+
+        assert len(captured["body"]["message"]) == 2000
+
+
+# ---------------------------------------------------------------------------
+# POST /camichat — error responses
+# ---------------------------------------------------------------------------
+
+
+class TestCamiChatErrors:
+    async def test_cami_chat_server_unreachable(self, llm_client: LLMClient) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectError("Connection refused")
+
+        _inject_transport(llm_client, handler)
+
+        with pytest.raises(LLMConnectionError, match="unreachable"):
+            await llm_client.cami_chat("hello")
+
+    async def test_cami_chat_timeout(self, llm_client: LLMClient) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            raise httpx.ReadTimeout("Read timed out")
+
+        _inject_transport(llm_client, handler)
+
+        with pytest.raises(LLMTimeoutError, match="timed out"):
+            await llm_client.cami_chat("hello")
+
+    async def test_cami_chat_500(self, llm_client: LLMClient) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(500)
+
+        _inject_transport(llm_client, handler)
+
+        with pytest.raises(LLMServerError, match="500"):
+            await llm_client.cami_chat("hello")
 
 
 # ---------------------------------------------------------------------------

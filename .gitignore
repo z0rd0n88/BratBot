@@ -22,6 +22,10 @@ alembic/versions/*.pyc
 # Claude Code local settings
 .claude/
 
+# Personality prompt files (contain sensitive content)
+model/prompts/*.txt
+!model/prompts/*.txt.example
+
 # Large model files
 *.gguf
 model/*.gguf
