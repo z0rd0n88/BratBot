@@ -41,9 +41,7 @@ _validator: RequestValidator | None = None
 def _sms_configured() -> bool:
     """Return True if all required Twilio credentials are present."""
     return bool(
-        settings.twilio_account_sid
-        and settings.twilio_auth_token
-        and settings.twilio_phone_number
+        settings.twilio_account_sid and settings.twilio_auth_token and settings.twilio_phone_number
     )
 
 
