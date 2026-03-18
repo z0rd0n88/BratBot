@@ -117,6 +117,29 @@ def _send_sms(to: str, body: str) -> None:
     )
 
 
+def _parse_route(body: str) -> tuple[str, str, dict]:
+    """Parse an optional personality prefix from the message body.
+
+    Supports "cami: ...", "cami ...", "brat: ...", "brat ..." (case-insensitive).
+    Returns (endpoint, clean_message, extra_payload).
+    """
+    stripped = body.strip()
+    lower = stripped.lower()
+
+    for prefix, endpoint, extra in (
+        ("cami", "/camichat", {}),
+        ("brat", "/bratchat", {"brat_level": settings.llm_brat_level}),
+    ):
+        if lower.startswith(prefix):
+            rest = stripped[len(prefix) :]
+            if rest and rest[0] in (":", " "):
+                clean = rest.lstrip(": ")
+                if clean:
+                    return endpoint, clean, extra
+
+    return "/bratchat", stripped, {"brat_level": settings.llm_brat_level}
+
+
 async def _process_sms(from_number: str, body: str) -> None:
     """Background task: rate-limit check → LLM call → send reply."""
     logger.info("sms_received from=%s body_len=%d", from_number, len(body))
@@ -126,13 +149,16 @@ async def _process_sms(from_number: str, body: str) -> None:
         await asyncio.to_thread(_send_sms, from_number, _RATE_LIMITED_REPLY)
         return
 
-    payload = {"message": body[:2000], "brat_level": settings.llm_brat_level}
+    endpoint, clean_body, extra = _parse_route(body)
+    payload = {"message": clean_body[:2000], **extra}
 
     try:
-        resp = await _http_client.post("/bratchat", json=payload)
+        resp = await _http_client.post(endpoint, json=payload)
         resp.raise_for_status()
         reply = resp.json().get("reply", _LLM_ERROR_REPLY)
-        logger.info("sms_reply_ready from=%s reply_len=%d", from_number, len(reply))
+        logger.info(
+            "sms_reply_ready from=%s endpoint=%s reply_len=%d", from_number, endpoint, len(reply)
+        )
     except Exception as exc:
         logger.error("sms_llm_error from=%s error=%s", from_number, exc)
         reply = _LLM_ERROR_REPLY
