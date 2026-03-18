@@ -433,6 +433,26 @@ BratBot/
 
 ---
 
+## LLM Inference Parameters
+
+BratBotModel passes these options to Ollama on every inference request. All three are configurable via environment variables — set them in `.env` or your pod template.
+
+| Parameter | Env Var | Default | Description |
+|---|---|---|---|
+| `num_ctx` | `OLLAMA_NUM_CTX` | `32768` | **Context window size** — total token budget for input + output combined. The system prompt, user message, and generated reply all count against this limit. 32K fits comfortably on an RTX 4090 with an 8B Q4 model (~10GB KV cache). Reduce to `8192` for GPUs with less VRAM. |
+| `num_predict` | `OLLAMA_NUM_PREDICT` | `-1` | **Max output tokens** — caps how many tokens the model generates per response. `-1` means unlimited: the model stops at its natural end-of-sequence token. In practice, Discord's 2000-character limit (~500 tokens) is the real hard cap for Discord responses. |
+| `temperature` | `OLLAMA_TEMPERATURE` | `0.9` | **Sampling randomness** — controls creativity vs. determinism. `0.0` always picks the highest-probability token (robotic, repetitive). `1.0` is highly random. `0.9` keeps responses lively and spontaneous, which suits the bratty personality. |
+
+To override any of these, set the corresponding variable in `.env`:
+
+```env
+OLLAMA_TEMPERATURE=0.9
+OLLAMA_NUM_PREDICT=-1
+OLLAMA_NUM_CTX=32768
+```
+
+---
+
 ## Environment Variables
 
 ### Discord / Core (`.env`)

@@ -25,6 +25,9 @@ logger = logging.getLogger("bratbot-model")
 # ---------------------------------------------------------------------------
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://ollama:11434")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen3-14b")
+OLLAMA_TEMPERATURE = float(os.environ.get("OLLAMA_TEMPERATURE", "0.9"))
+OLLAMA_NUM_PREDICT = int(os.environ.get("OLLAMA_NUM_PREDICT", "-1"))
+OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "32768"))
 
 # Shared async HTTP client (created in lifespan)
 _http_client: httpx.AsyncClient | None = None
@@ -172,8 +175,9 @@ async def bratchat(request: ChatRequest):
         ],
         "stream": False,
         "options": {
-            "temperature": 0.7,
-            "num_predict": 1024,
+            "temperature": OLLAMA_TEMPERATURE,
+            "num_predict": OLLAMA_NUM_PREDICT,
+            "num_ctx": OLLAMA_NUM_CTX,
         },
     }
 
@@ -225,8 +229,9 @@ async def camichat(request: CamiChatRequest):
         ],
         "stream": False,
         "options": {
-            "temperature": 0.9,
-            "num_predict": 1024,
+            "temperature": OLLAMA_TEMPERATURE,
+            "num_predict": OLLAMA_NUM_PREDICT,
+            "num_ctx": OLLAMA_NUM_CTX,
         },
     }
 
