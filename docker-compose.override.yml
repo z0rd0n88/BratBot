@@ -7,7 +7,6 @@ services:
     volumes:
       - ./src:/app/src:ro
       - ./model:/model:ro
-      - ./alembic:/app/alembic:ro
       - ./.env:/app/.env:ro
     environment:
       LOG_LEVEL: DEBUG

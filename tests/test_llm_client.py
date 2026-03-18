@@ -101,11 +101,11 @@ class TestChatHappyPath:
             return httpx.Response(200, json=CHAT_RESPONSE)
 
         _inject_transport(llm_client, handler)
-        await llm_client.chat("test msg", brat_level=4)
+        await llm_client.chat("test msg", brat_level=2)
 
         assert captured["method"] == "POST"
         assert captured["path"] == "/chat"
-        assert captured["body"] == {"message": "test msg", "brat_level": 4}
+        assert captured["body"] == {"message": "test msg", "brat_level": 2}
 
     async def test_chat_uses_default_brat_level(self, llm_client: LLMClient) -> None:
         """When no brat_level is passed, the client's default (3) is used."""
@@ -132,7 +132,7 @@ class TestChatHappyPath:
 
         assert captured["body"]["brat_level"] == 1
 
-    @pytest.mark.parametrize("brat_level", [1, 2, 3, 4, 5])
+    @pytest.mark.parametrize("brat_level", [1, 2, 3])
     async def test_chat_each_brat_level(self, llm_client: LLMClient, brat_level: int) -> None:
         captured: dict = {}
 

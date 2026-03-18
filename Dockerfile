@@ -37,8 +37,6 @@ COPY --from=bot-builder /install /usr/local
 
 # BratBot files
 WORKDIR /app
-COPY alembic.ini ./
-COPY alembic/ alembic/
 
 # BratBotModel files
 COPY model/app.py /model/app.py
