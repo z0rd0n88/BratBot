@@ -3,6 +3,7 @@ __pycache__/
 *.pyo
 .venv/
 .env
+.env.runpod
 dist/
 *.egg-info/
 .ruff_cache/

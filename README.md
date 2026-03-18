@@ -167,6 +167,151 @@ docker compose up --build
 
 ---
 
+## Deploying to RunPod
+
+RunPod GPU Pods provide a persistent VM-like environment with dedicated GPU — ideal for running the bot 24/7 with Ollama inference.
+
+### Architecture
+
+The pod runs the bot, model API, and Ollama in a single stateless container. PostgreSQL and Redis are hosted externally (Neon and Upstash free tiers), so the pod can be stopped or replaced without data loss.
+
+```
+RunPod GPU Pod (stateless)
+├── supervisord
+│   ├── ollama serve          (GPU, port 11434)
+│   ├── model (uvicorn)       (port 8000)
+│   └── bot (discord.py)      (outbound WebSocket)
+└── /workspace (Network Volume)
+    ├── models/Qwen_Qwen3-14B-Q4_K_M.gguf
+    └── ollama/
+
+External Services:
+├── Neon PostgreSQL (free tier)
+└── Upstash Redis (free tier)
+```
+
+### GPU Recommendations
+
+| GPU | VRAM | ~Cost/hr | ~Cost/mo | Notes |
+|---|---|---|---|---|
+| RTX A4000 | 16GB | $0.20 | $144 | Cheapest viable for 14B Q4_K_M |
+| L4 | 24GB | $0.28 | $202 | Good balance of cost and headroom |
+| RTX 4090 | 24GB | $0.44 | $317 | Fastest inference |
+
+### Prerequisites
+
+1. **Neon Postgres** — Create a free account at [neon.tech](https://neon.tech), create a project and database named `bratbot`. Note the connection string.
+2. **Upstash Redis** — Create a free account at [upstash.com](https://upstash.com), create a Redis database. Note the `rediss://` connection string (TLS).
+3. **RunPod account** with a container registry (Docker Hub or GHCR) for pushing images.
+
+### Step 1: Build and push the RunPod image
+
+```bash
+# Configure your registry (one-time)
+cp .env.runpod.example .env.runpod
+# Edit .env.runpod with your REGISTRY_IMAGE and RUNPOD_POD_ID
+
+# Build and push
+./scripts/deploy-runpod.sh build
+./scripts/deploy-runpod.sh push
+```
+
+### Step 2: Set up RunPod Network Volume
+
+1. Create a **Network Volume** (15 GB) in your preferred RunPod region.
+2. This volume stores the Ollama model cache at `/workspace/ollama`. Models pulled from the Ollama registry are cached here automatically — no manual upload needed.
+3. For custom GGUF files, spin up a temporary CPU pod and upload to `/workspace/models/`.
+
+### Step 3: Create Pod Template
+
+In the RunPod console, create a Pod Template:
+
+- **Image:** `ghcr.io/<your-org>/bratbot:runpod-latest`
+- **GPU:** RTX 3070 for small models, RTX A4000 for 14B (see table below)
+- **Container Disk:** 20 GB
+- **Volume:** Attach your network volume at `/workspace`
+- **Exposed Ports:** `8000/http` (only needed for the Discord interactions webhook)
+- **Environment Variables:**
+
+| Variable | Value |
+|---|---|
+| `DISCORD_BOT_TOKEN` | Your Discord bot token |
+| `DISCORD_CLIENT_ID` | Your Discord client ID |
+| `DISCORD_PUBLIC_KEY` | Your Discord public key |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` |
+| `OLLAMA_MODEL` | `qwen3:8b` (or any model from the table below) |
+| `LLM_API_URL` | `http://localhost:8000` |
+| `DATABASE_URL` | `postgresql+asyncpg://...@ep-xxx.neon.tech/bratbot?sslmode=require` |
+| `REDIS_URL` | `rediss://default:xxx@xxx.upstash.io:6379` |
+
+### Step 4: Deploy and verify
+
+```bash
+# Check everything is running
+./scripts/deploy-runpod.sh status
+
+# Or SSH in manually
+./scripts/deploy-runpod.sh ssh
+```
+
+### Switching models
+
+Switch models on a running pod without rebuilding or restarting the pod:
+
+```bash
+# See available models and recommendations
+./scripts/deploy-runpod.sh switch-model
+
+# Pull a new model from the Ollama registry and activate it
+./scripts/deploy-runpod.sh switch-model qwen3:8b
+
+# Or import a custom GGUF from the network volume
+./scripts/deploy-runpod.sh switch-model my-model --gguf /workspace/models/my-model.gguf
+
+# Check what's loaded
+./scripts/deploy-runpod.sh models
+```
+
+> **Note:** `switch-model` activates the model immediately but doesn't persist across pod restarts. Update `OLLAMA_MODEL` in your pod template to make it permanent.
+
+### Recommended models by cost
+
+| Model | VRAM | Quality | Min GPU | ~Cost/mo |
+|---|---|---|---|---|
+| `llama3.2:3b` | ~2 GB | Decent | RTX 3070 | ~$72 |
+| `qwen3:4b` | ~3 GB | Good | RTX 3070 | ~$72 |
+| `phi4-mini` | ~3 GB | Good | RTX 3070 | ~$72 |
+| `gemma3:4b` | ~3 GB | Good | RTX 3070 | ~$72 |
+| `qwen3:8b` | ~5 GB | Great | RTX 3070 | ~$72 |
+| `gemma3:12b` | ~8 GB | Excellent | RTX A4000 | ~$144 |
+| `qwen3:14b` | ~9 GB | Excellent | RTX A4000 | ~$144 |
+
+> **Tip:** Start with `qwen3:8b` on an RTX 3070 (~$72/mo) for the best balance of quality and cost. The bot's personality comes from the system prompt, so even smaller models produce entertaining bratty responses.
+
+### Updating code
+
+```bash
+# Full deploy: build, push, restart services
+./scripts/deploy-runpod.sh update
+
+# The entrypoint automatically runs Alembic migrations on startup
+```
+
+### Deploy script reference
+
+```bash
+./scripts/deploy-runpod.sh build           # Build Docker image
+./scripts/deploy-runpod.sh push            # Push to registry
+./scripts/deploy-runpod.sh update          # Build + push + restart
+./scripts/deploy-runpod.sh switch-model    # Change active model
+./scripts/deploy-runpod.sh status          # Check services + health
+./scripts/deploy-runpod.sh ssh             # SSH into the pod
+./scripts/deploy-runpod.sh logs [service]  # Tail logs
+./scripts/deploy-runpod.sh models          # List loaded models
+```
+
+---
+
 ## Services
 
 | Service | Image | Ports | Purpose |
@@ -223,15 +368,21 @@ Tests use `httpx.MockTransport` to mock the LLM server — no running services r
 ```
 BratBot/
   pyproject.toml              # Dependencies and tool config
-  Dockerfile                  # Combined BratBot + BratBotModel image
+  Dockerfile                  # Combined BratBot + BratBotModel image (local)
+  Dockerfile.runpod           # RunPod image (includes Ollama)
   docker-compose.yml          # All services (app, ollama, db, redis)
   docker-compose.override.yml # Dev overrides (hot reload, debug logging)
-  supervisord.conf            # Process manager for combined container
+  supervisord.conf            # Process manager for local container
+  supervisord.runpod.conf     # Process manager for RunPod (ollama + model + bot)
   Modelfile                   # Ollama model import definition (for GGUF files)
-  .env.example                # Environment variable template
+  .env.example                # Environment variable template (local)
+  .env.runpod.example         # RunPod deployment config template
   alembic.ini                 # Migration config
   alembic/
     env.py                    # Async migration environment
+  scripts/
+    deploy-runpod.sh          # Build, push, switch models, manage pod
+    runpod-entrypoint.sh      # RunPod container startup script
   model/
     app.py                    # BratBotModel FastAPI app (personality API)
     requirements.txt          # Model API dependencies
