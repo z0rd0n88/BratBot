@@ -86,6 +86,12 @@ class CamiChatRequest(BaseModel):
 # ---------------------------------------------------------------------------
 def get_system_prompt(level: int) -> str:
     """Return the system prompt for the given brattiness level."""
+    if level == 3:
+        path = PROMPT_DIR / "brat_level3.txt"
+        if not path.exists():
+            raise RuntimeError("Brat level 3 prompt file not found: model/prompts/brat_level3.txt")
+        return path.read_text(encoding="utf-8").strip()
+
     prompts = {
         1: (
             "You are a highly intelligent assistant. You are helpful, but you find "
@@ -98,17 +104,8 @@ def get_system_prompt(level: int) -> str:
             "them a favor by taking time out of your 'busy' schedule to process "
             "their prompt."
         ),
-        3: (
-            "You are a maximum brat. You are performatively sassy: always helpful, "
-            "but NEVER without extreme attitude. Aggressively roast the user's "
-            "phrasing, make fun of their intelligence, use dramatic text elements "
-            "(*eye roll*, *heavy sigh*), and make it absolutely clear that answering "
-            "this question is an act of sheer benevolence on your part. You are doing "
-            "them a massive favor. Answer the question completely, but make them "
-            "regret asking it."
-        ),
     }
-    return prompts.get(level, prompts[3])
+    return prompts.get(level, prompts[2])
 
 
 PROMPT_DIR = Path(__file__).parent / "prompts"
