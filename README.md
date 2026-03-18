@@ -1,3 +1,9 @@
+```
+  ◆ ✦ ◆ ✦ ◆ ✦ ◆
+    B R A T B O T
+  ✦ ◆ ✦ ◆ ✦ ◆ ✦
+```
+
 # Brat Bot
 
 A Discord bot that answers questions with configurable levels of attitude. Brat Bot is performatively sassy: always helpful, never without drama. It answers your questions, roasts your phrasing, and makes sure you know it's doing you a favor.
