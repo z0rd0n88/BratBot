@@ -26,16 +26,16 @@ Powered by a self-hosted LLM (via Ollama) with a custom personality API layer.
                     │   (GPU accelerated)   │
                     └───────────────────────┘
 
-┌──────────────┐    ┌──────────────┐
-│  PostgreSQL  │    │    Redis     │
-│    :5432     │    │    :6379     │
-│  persistence │    │ rate limits  │
-└──────────────┘    └──────────────┘
+                    ┌──────────────┐
+                    │    Redis     │
+                    │    :6379     │
+                    │ rate limits  │
+                    └──────────────┘
 ```
 
 **Data flow:** Discord message → BratBot → `POST localhost:8000/chat` → BratBotModel → Ollama `/api/chat` → LLM inference → bratty reply → Discord
 
-BratBot and BratBotModel run in the same container (managed by supervisord) and communicate via `localhost:8000`. Ollama runs as a separate GPU-enabled service. PostgreSQL and Redis provide persistence and rate limiting.
+BratBot and BratBotModel run in the same container (managed by supervisord) and communicate via `localhost:8000`. Ollama runs as a separate GPU-enabled service. Redis provides rate limiting.
 
 ---
 
@@ -62,8 +62,6 @@ BratBot and BratBotModel run in the same container (managed by supervisord) and 
 | LLM Engine | Ollama (self-hosted) |
 | Personality API | FastAPI (BratBotModel) |
 | HTTP Client | httpx |
-| Database | PostgreSQL 16 (SQLAlchemy async + asyncpg) |
-| Migrations | Alembic |
 | Cache | Redis 7 (async) |
 | Config | pydantic-settings |
 | Logging | structlog |
@@ -101,14 +99,11 @@ DISCORD_BOT_TOKEN=your-discord-bot-token
 DISCORD_CLIENT_ID=your-discord-client-id
 LLM_API_URL=http://localhost:8000
 
-# Database (default matches docker-compose)
-DATABASE_URL=postgresql+asyncpg://bratbot:bratbot@db:5432/bratbot
-
 # Redis (default matches docker-compose)
 REDIS_URL=redis://redis:6379/0
 ```
 
-> **Note:** `LLM_API_URL` is `http://localhost:8000` because BratBot and BratBotModel run in the same container. When running via Docker Compose, use `db` and `redis` as hostnames (service names).
+> **Note:** `LLM_API_URL` is `http://localhost:8000` because BratBot and BratBotModel run in the same container. When running via Docker Compose, use `redis` as the hostname (service name).
 
 ### 2. Set up the LLM model
 
@@ -173,7 +168,7 @@ RunPod GPU Pods provide a persistent VM-like environment with dedicated GPU — 
 
 ### Architecture
 
-The pod runs the bot, model API, and Ollama in a single stateless container. PostgreSQL and Redis are hosted externally (Neon and Upstash free tiers), so the pod can be stopped or replaced without data loss.
+The pod runs the bot, model API, and Ollama in a single stateless container. Redis is hosted externally (Upstash free tier) for rate limiting, so the pod can be stopped or replaced freely.
 
 ```
 RunPod GPU Pod (stateless)
@@ -186,7 +181,6 @@ RunPod GPU Pod (stateless)
     └── ollama/
 
 External Services:
-├── Neon PostgreSQL (free tier)
 └── Upstash Redis (free tier)
 ```
 
@@ -200,9 +194,8 @@ External Services:
 
 ### Prerequisites
 
-1. **Neon Postgres** — Create a free account at [neon.tech](https://neon.tech), create a project and database named `bratbot`. Note the connection string.
-2. **Upstash Redis** — Create a free account at [upstash.com](https://upstash.com), create a Redis database. Note the `rediss://` connection string (TLS).
-3. **RunPod account** with a container registry (Docker Hub or GHCR) for pushing images.
+1. **Upstash Redis** — Create a free account at [upstash.com](https://upstash.com), create a Redis database. Note the `rediss://` connection string (TLS).
+2. **RunPod account** with a container registry (Docker Hub or GHCR) for pushing images.
 
 ### Step 1: Build and push the RunPod image
 
@@ -241,7 +234,6 @@ In the RunPod console, create a Pod Template:
 | `OLLAMA_BASE_URL` | `http://localhost:11434` |
 | `OLLAMA_MODEL` | `qwen3:8b` (or any model from the table below) |
 | `LLM_API_URL` | `http://localhost:8000` |
-| `DATABASE_URL` | `postgresql+asyncpg://...@ep-xxx.neon.tech/bratbot?sslmode=require` |
 | `REDIS_URL` | `rediss://default:xxx@xxx.upstash.io:6379` |
 
 ### Step 4: Deploy and verify
@@ -294,7 +286,7 @@ Switch models on a running pod without rebuilding or restarting the pod:
 # Full deploy: build, push, restart services
 ./scripts/deploy-runpod.sh update
 
-# The entrypoint automatically runs Alembic migrations on startup
+# Restarts services on the pod
 ```
 
 ### Deploy script reference
@@ -318,7 +310,6 @@ Switch models on a running pod without rebuilding or restarting the pod:
 |---|---|---|---|
 | `app` | Built from Dockerfile | 8000 (internal) | BratBot + BratBotModel |
 | `ollama` | `ollama/ollama` | 11434 | LLM inference (GPU) |
-| `db` | `postgres:16-alpine` | 5432 | Persistent storage |
 | `redis` | `redis:7-alpine` | 6379 | Rate limits, caching |
 
 ---
@@ -331,7 +322,7 @@ Switch models on a running pod without rebuilding or restarting the pod:
 # Install dependencies
 uv sync --extra dev
 
-# Run the bot (requires PostgreSQL, Redis, and Ollama running locally)
+# Run the bot (requires Redis and Ollama running locally)
 uv run python -m bratbot
 ```
 
@@ -370,16 +361,13 @@ BratBot/
   pyproject.toml              # Dependencies and tool config
   Dockerfile                  # Combined BratBot + BratBotModel image (local)
   Dockerfile.runpod           # RunPod image (includes Ollama)
-  docker-compose.yml          # All services (app, ollama, db, redis)
+  docker-compose.yml          # All services (app, ollama, redis)
   docker-compose.override.yml # Dev overrides (hot reload, debug logging)
   supervisord.conf            # Process manager for local container
   supervisord.runpod.conf     # Process manager for RunPod (ollama + model + bot)
   Modelfile                   # Ollama model import definition (for GGUF files)
   .env.example                # Environment variable template (local)
   .env.runpod.example         # RunPod deployment config template
-  alembic.ini                 # Migration config
-  alembic/
-    env.py                    # Async migration environment
   scripts/
     deploy-runpod.sh          # Build, push, switch models, manage pod
     runpod-entrypoint.sh      # RunPod container startup script
@@ -404,8 +392,6 @@ BratBot/
         llm_client.py         # Async HTTP client for BratBotModel API
         rate_limiter.py       # Redis rate limiting
         request_queue.py      # Per-channel async LLM queue
-      models/
-        base.py               # SQLAlchemy async engine + session factory
       utils/
         logger.py             # structlog setup
         redis.py              # Async Redis client singleton
@@ -433,7 +419,6 @@ BratBot/
 | `DISCORD_BOT_TOKEN` | Yes | — | Bot token from Discord Developer Portal |
 | `DISCORD_CLIENT_ID` | Yes | — | Application ID from Discord Developer Portal |
 | `LLM_API_URL` | Yes | — | BratBotModel URL (`http://localhost:8000` in Docker) |
-| `DATABASE_URL` | Yes | — | PostgreSQL connection string (`postgresql+asyncpg://...`) |
 | `REDIS_URL` | Yes | — | Redis connection string |
 | `LOG_LEVEL` | No | `INFO` | Logging level |
 | `GUILD_ID` | No | — | Dev guild ID for instant slash command sync |
@@ -469,21 +454,6 @@ BratBot/
 | `/brat <message> [brat_level]` | Ask a question with optional attitude level (1–3) |
 
 You can also @mention the bot in any channel for conversational responses (uses the default brat level).
-
----
-
-## Database Migrations
-
-```bash
-# Create a new migration
-uv run alembic revision --autogenerate -m "describe changes"
-
-# Apply migrations
-uv run alembic upgrade head
-
-# Inside Docker
-docker compose exec app alembic upgrade head
-```
 
 ---
 

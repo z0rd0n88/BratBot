@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ─── RunPod Entrypoint ───────────────────────────────────────────────
-# Starts supervisord, waits for Ollama, loads the model, runs migrations.
+# Starts supervisord, waits for Ollama, and loads the model.
 # ─────────────────────────────────────────────────────────────────────
 
 OLLAMA_MODEL="${OLLAMA_MODEL:-qwen3-14b}"
@@ -47,11 +47,6 @@ else
     fi
     echo "==> Model '${OLLAMA_MODEL}' ready."
 fi
-
-# ─── Run Alembic migrations ──────────────────────────────────────────
-echo "==> Running database migrations..."
-cd /app && python -m alembic upgrade head
-echo "==> Migrations complete."
 
 # ─── Keep alive ──────────────────────────────────────────────────────
 echo "==> All services started. Waiting on supervisord (PID ${SUPERVISOR_PID})..."

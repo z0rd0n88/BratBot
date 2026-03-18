@@ -6,11 +6,8 @@ services:
       LLM_API_URL: http://localhost:8000
       OLLAMA_BASE_URL: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3-14b}
-      DATABASE_URL: postgresql+asyncpg://bratbot:bratbot@db:5432/bratbot
       REDIS_URL: redis://redis:6379/0
     depends_on:
-      db:
-        condition: service_healthy
       redis:
         condition: service_healthy
       ollama:
@@ -41,22 +38,6 @@ services:
       start_period: 30s
       retries: 5
 
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: bratbot
-      POSTGRES_PASSWORD: bratbot
-      POSTGRES_DB: bratbot
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bratbot"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
   redis:
     image: redis:7-alpine
     ports:
@@ -68,5 +49,4 @@ services:
       retries: 5
 
 volumes:
-  pgdata:
   ollama_data:

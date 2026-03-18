@@ -9,7 +9,6 @@ import discord
 from discord.ext import commands
 
 from bratbot.config import settings
-from bratbot.models.base import close_db, init_db
 from bratbot.services.llm_client import LLMClient
 from bratbot.services.rate_limiter import RateLimiter
 from bratbot.services.request_queue import RequestQueue
@@ -37,10 +36,6 @@ class BratBot(commands.Bot):
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self) -> None:
-        # Initialize database
-        init_db(settings.database_url)
-        log.info("database_initialized")
-
         # Initialize Redis
         redis = await get_redis(settings.redis_url)
         log.info("redis_initialized")
@@ -127,6 +122,5 @@ class BratBot(commands.Bot):
         if hasattr(self, "llm_client"):
             await self.llm_client.close()
         await close_redis()
-        await close_db()
         log.info("connections_closed")
         await super().close()
