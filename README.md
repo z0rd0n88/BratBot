@@ -56,7 +56,7 @@ All services run in the same container (managed by supervisord). Ollama runs as 
 ## Features
 
 - **Self-Hosted LLM** — Runs on your own hardware via Ollama. No API keys, no usage fees, full control.
-- **`/brat` Slash Command** — Ask a question with an optional brat level (1–3).
+- **`/bratchat` Slash Command** — Ask a question with an optional brat level (1–3).
 - **@Mention Support** — Mention the bot in any channel for free-form conversation.
 - **SMS/RCS Support** — Text the bot via any phone number (Twilio). Works on Android and iPhone.
 - **Adjustable Brattiness** — 5 levels from mildly tedious to maximum diva.
@@ -172,7 +172,7 @@ docker compose up --build
 
 - The bot should appear online in your Discord server.
 - Run `/ping` — responds with "Pong" and WebSocket latency.
-- Run `/brat How do loops work?` — responds with a bratty explanation.
+- Run `/bratchat How do loops work?` — responds with a bratty explanation.
 - @mention the bot — responds via the LLM pipeline.
 
 ---
@@ -403,7 +403,7 @@ BratBot/
         settings.py           # pydantic-settings (env var validation)
       commands/
         ping.py               # /ping slash command
-        brat.py               # /brat slash command (LLM query)
+        bratchat.py           # /bratchat slash command (LLM query)
       events/
         ready.py              # on_ready listener
         guild.py              # Guild join/remove logging
@@ -563,7 +563,7 @@ curl -X POST http://localhost:8001/incoming \
 | Command | Description |
 |---|---|
 | `/ping` | Check if the bot is alive (returns latency) |
-| `/brat <message> [brat_level]` | Ask a question with optional attitude level (1–3) |
+| `/bratchat <message> [brat_level]` | Ask a question with optional attitude level (1–3) |
 
 You can also @mention the bot in any channel for conversational responses (uses the default brat level).
 
@@ -571,7 +571,7 @@ You can also @mention the bot in any channel for conversational responses (uses 
 
 ## Troubleshooting
 
-**Bot is online but `/brat` doesn't appear**
+**Bot is online but `/bratchat` doesn't appear**
 Slash commands take up to an hour to sync globally. Set `GUILD_ID` in `.env` for instant sync during development.
 
 **"LLM server unhealthy" on startup**

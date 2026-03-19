@@ -1,4 +1,4 @@
-"""The /brat slash command — ask the brat a question."""
+"""The /bratchat slash command — ask the brat a question."""
 
 from __future__ import annotations
 
@@ -26,12 +26,12 @@ class BratCog(commands.Cog):
     def __init__(self, bot: BratBot) -> None:
         self.bot = bot
 
-    @app_commands.command(name="brat", description="Ask the brat a question")
+    @app_commands.command(name="bratchat", description="Ask the brat a question")
     @app_commands.describe(
         message="What do you want to say?",
         brat_level="How bratty? (1-3, default: server setting)",
     )
-    async def brat(
+    async def bratchat(
         self,
         interaction: discord.Interaction,
         message: str,
@@ -52,7 +52,7 @@ class BratCog(commands.Cog):
         await interaction.response.defer()
 
         log.info(
-            "brat_command",
+            "bratchat_command",
             guild_id=guild_id,
             user_id=interaction.user.id,
             brat_level=brat_level,
