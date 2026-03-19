@@ -26,6 +26,8 @@ class BratCog(commands.Cog):
     def __init__(self, bot: BratBot) -> None:
         self.bot = bot
 
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.command(name="bratchat", description="Ask the brat a question")
     @app_commands.describe(
         message="What do you want to say?",
