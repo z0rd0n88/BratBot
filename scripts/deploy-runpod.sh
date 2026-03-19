@@ -128,7 +128,7 @@ preflight_ssh() {
             if is_wsl; then
                 echo "WSL DNS may not be working. In WSL, you can use:"
                 echo "  nslookup ssh.runpod.io"
-                echo "If that fails, DNS needs configuration (see CLAUDE.md WSL section)"
+                echo "If that fails, DNS needs configuration (see WSL documentation)"
             fi
             exit 1
         fi
