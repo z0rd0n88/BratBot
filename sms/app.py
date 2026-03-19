@@ -93,19 +93,25 @@ async def _is_rate_limited(phone: str) -> bool:
     """Return True if this phone number has exceeded the per-user rate limit.
 
     Uses the same Redis INCR + EXPIRE atomic pattern as the Discord rate limiter
-    (src/bratbot/services/rate_limiter.py).
+    (src/bratbot/services/rate_limiter.py). Degrades gracefully if Redis is down.
     """
-    key = f"ratelimit:sms:user:{phone}"
-    async with _redis_client.pipeline(transaction=True) as pipe:
-        pipe.incr(key)
-        pipe.expire(key, settings.rate_limit_user_seconds)
-        results = await pipe.execute()
-    count = results[0]
-    if count > 1:
-        ttl = await _redis_client.ttl(key)
-        logger.debug("rate_limit_hit phone=%s count=%d retry_after=%d", phone, count, ttl)
-        return True
-    return False
+    if _redis_client is None:
+        return False
+    try:
+        key = f"ratelimit:sms:user:{phone}"
+        async with _redis_client.pipeline(transaction=True) as pipe:
+            pipe.incr(key)
+            pipe.expire(key, settings.rate_limit_user_seconds)
+            results = await pipe.execute()
+        count = results[0]
+        if count > 1:
+            ttl = await _redis_client.ttl(key)
+            logger.debug("rate_limit_hit phone=%s count=%d retry_after=%d", phone, count, ttl)
+            return True
+        return False
+    except Exception as exc:
+        logger.warning("rate_limit_redis_error phone=%s error=%s — allowing request", phone, exc)
+        return False
 
 
 def _send_sms(to: str, body: str) -> None:
@@ -115,6 +121,14 @@ def _send_sms(to: str, body: str) -> None:
         from_=settings.twilio_phone_number,
         body=body[:_SMS_MAX_LENGTH],
     )
+
+
+async def _safe_send_sms(to: str, body: str) -> None:
+    """Send an SMS, logging errors instead of propagating them."""
+    try:
+        await asyncio.to_thread(_send_sms, to, body)
+    except Exception as exc:
+        logger.error("sms_send_error to=%s error=%s", to, exc)
 
 
 def _parse_route(body: str) -> tuple[str, str, dict]:
@@ -146,7 +160,7 @@ async def _process_sms(from_number: str, body: str) -> None:
 
     if await _is_rate_limited(from_number):
         logger.info("sms_rate_limited from=%s", from_number)
-        await asyncio.to_thread(_send_sms, from_number, _RATE_LIMITED_REPLY)
+        await _safe_send_sms(from_number, _RATE_LIMITED_REPLY)
         return
 
     endpoint, clean_body, extra = _parse_route(body)
@@ -163,7 +177,7 @@ async def _process_sms(from_number: str, body: str) -> None:
         logger.error("sms_llm_error from=%s error=%s", from_number, exc)
         reply = _LLM_ERROR_REPLY
 
-    await asyncio.to_thread(_send_sms, from_number, reply)
+    await _safe_send_sms(from_number, reply)
 
 
 # ---------------------------------------------------------------------------
@@ -206,7 +220,7 @@ async def incoming_sms(request: Request, background_tasks: BackgroundTasks):
 
     if not body:
         logger.info("sms_empty_body from=%s", from_number)
-        background_tasks.add_task(_send_sms, from_number, _EMPTY_MESSAGE_REPLY)
+        background_tasks.add_task(_safe_send_sms, from_number, _EMPTY_MESSAGE_REPLY)
         return Response(content="<Response/>", media_type="text/xml")
 
     background_tasks.add_task(_process_sms, from_number, body)
