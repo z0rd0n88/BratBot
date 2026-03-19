@@ -24,14 +24,18 @@ class RateLimiter:
         """Atomically increment and check a rate limit counter.
 
         Returns (allowed, count) where allowed is True if under the limit.
+        Degrades gracefully: if Redis is unavailable, requests are allowed through.
         """
-        async with self.redis.pipeline(transaction=True) as pipe:
-            pipe.incr(key)
-            pipe.expire(key, window)
-            results = await pipe.execute()
-            count = results[0]
-
-        return count <= max_requests, count
+        try:
+            async with self.redis.pipeline(transaction=True) as pipe:
+                pipe.incr(key)
+                pipe.expire(key, window)
+                results = await pipe.execute()
+                count = results[0]
+            return count <= max_requests, count
+        except aioredis.RedisError as e:
+            log.warning("redis_unavailable", error=str(e), key=key)
+            return True, 0
 
     async def check_user(self, user_id: int, guild_id: int) -> bool:
         """Check if a user is within the per-user rate limit.
@@ -44,7 +48,10 @@ class RateLimiter:
 
         allowed, _count = await self._check(key, window, max_requests=1)
         if not allowed:
-            ttl = await self.redis.ttl(key)
+            try:
+                ttl = await self.redis.ttl(key)
+            except aioredis.RedisError:
+                ttl = window
             log.debug(
                 "rate_limit_user_hit",
                 user_id=user_id,
@@ -65,7 +72,10 @@ class RateLimiter:
 
         allowed, count = await self._check(key, window, max_requests)
         if not allowed:
-            ttl = await self.redis.ttl(key)
+            try:
+                ttl = await self.redis.ttl(key)
+            except aioredis.RedisError:
+                ttl = window
             log.debug(
                 "rate_limit_channel_hit",
                 channel_id=channel_id,
