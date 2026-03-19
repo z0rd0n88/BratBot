@@ -20,7 +20,6 @@ alembic/versions/*.pyc
 *~
 .DS_Store
 
-# Claude Code local settings
 .claude/
 
 # Personality prompt files (contain sensitive content)
@@ -35,6 +34,5 @@ model/*.gguf
 !model/app.py
 !model/requirements.txt
 
-# Claude Code configuration
 .claude/
 CLAUDE.md
