@@ -86,13 +86,19 @@ class RequestQueue:
             coro, future, channel = await queue.get()
 
             try:
-                # Show typing indicator while processing
-                async with channel.typing():
+                # Show typing indicator while processing (skip for DMs — they already show "thinking" from defer)
+                if isinstance(channel, discord.DMChannel):
                     result = await asyncio.wait_for(
                         coro,
                         timeout=settings.llm_timeout_seconds,
                     )
-                    future.set_result(result)
+                else:
+                    async with channel.typing():
+                        result = await asyncio.wait_for(
+                            coro,
+                            timeout=settings.llm_timeout_seconds,
+                        )
+                future.set_result(result)
 
             except TimeoutError:
                 log.error(
