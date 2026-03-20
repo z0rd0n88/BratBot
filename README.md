@@ -319,11 +319,19 @@ Switch models on a running pod without rebuilding or restarting the pod:
 
 ### Updating code
 
-```bash
-# Full deploy: build, push, restart services
-./scripts/deploy-runpod.sh update
+For pure code changes (no new dependencies), use `hot-update` — it syncs source files
+over SCP and restarts only the Python services. Ollama stays running with the model
+loaded in VRAM, so there's no model reload delay:
 
-# Restarts services on the pod
+```bash
+./scripts/deploy-runpod.sh hot-update
+```
+
+For changes that add or remove Python dependencies (i.e., `pyproject.toml` or
+`model/requirements.txt` changed), do a full deploy:
+
+```bash
+./scripts/deploy-runpod.sh update
 ```
 
 ### Deploy script reference
@@ -331,7 +339,8 @@ Switch models on a running pod without rebuilding or restarting the pod:
 ```bash
 ./scripts/deploy-runpod.sh build           # Build Docker image
 ./scripts/deploy-runpod.sh push            # Push to registry
-./scripts/deploy-runpod.sh update          # Build + push + restart
+./scripts/deploy-runpod.sh hot-update      # Sync code + restart (Ollama stays up)
+./scripts/deploy-runpod.sh update          # Build + push + restart (full deploy)
 ./scripts/deploy-runpod.sh switch-model    # Change active model
 ./scripts/deploy-runpod.sh status          # Check services + health
 ./scripts/deploy-runpod.sh ssh             # SSH into the pod

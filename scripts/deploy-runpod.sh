@@ -161,6 +161,17 @@ pod_ssh() {
         --port "${RUNPOD_SSH_PORT}"
 }
 
+pod_scp() {
+    local local_path="${1}"
+    local remote_path="${2}"
+    python3 "${SCRIPT_DIR}/runpod-ssh-wrapper.py" scp \
+        "${local_path}" "${remote_path}" \
+        --key "${RUNPOD_SSH_KEY}" \
+        --user "${RUNPOD_SSH_USER}" \
+        --host "${RUNPOD_SSH_HOST}" \
+        --port "${RUNPOD_SSH_PORT}"
+}
+
 # ─── Commands ────────────────────────────────────────────────────────
 
 cmd_build() {
@@ -294,6 +305,29 @@ cmd_switch_model() {
     echo ""
 }
 
+cmd_hot_update() {
+    require_pod_id
+
+    info "Hot-updating app code on pod ${RUNPOD_POD_ID} (Ollama stays running)..."
+
+    info "  → Syncing src/ ..."
+    pod_scp "${PROJECT_DIR}/src/" "/app/src/"
+
+    info "  → Syncing model/ ..."
+    pod_scp "${PROJECT_DIR}/model/" "/model/"
+
+    info "  → Syncing sms/ ..."
+    pod_scp "${PROJECT_DIR}/sms/app.py" "/sms/app.py"
+    pod_scp "${PROJECT_DIR}/sms/settings.py" "/sms/settings.py"
+
+    info "Restarting model, bot, sms (ollama stays up)..."
+    pod_ssh "supervisorctl restart model bot sms"
+
+    ok "Hot-update complete. Model stayed loaded in VRAM."
+    echo ""
+    echo "Verify with: $0 status"
+}
+
 cmd_update() {
     info "Full deploy: build -> push -> restart pod"
     cmd_build
@@ -363,7 +397,8 @@ cmd_help() {
     echo "  push                         Push the image to registry"
     echo "  make-public                  Make the GHCR package public"
     echo "  switch-model <name> [--gguf] Switch the active Ollama model on the pod"
-    echo "  update                       Full deploy: build, push, restart"
+    echo "  hot-update                   Sync code + restart services (Ollama stays up)
+  update                       Full deploy: build, push, restart"
     echo "  ssh                          SSH into the pod"
     echo "  status                       Check services, models, and health"
     echo "  logs [service]               Tail logs (all, ollama, model, bot)"
@@ -384,6 +419,7 @@ case "${1:-help}" in
     push)          cmd_push ;;
     make-public)   cmd_make_public ;;
     switch-model)  shift; cmd_switch_model "$@" ;;
+    hot-update)    cmd_hot_update ;;
     update)        cmd_update ;;
     ssh)           cmd_ssh ;;
     status)        cmd_status ;;
