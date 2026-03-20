@@ -228,8 +228,17 @@ cp .env.runpod.example .env.runpod
 ### Step 2: Set up RunPod Network Volume
 
 1. Create a **Network Volume** (15 GB) in your preferred RunPod region.
-2. This volume stores the Ollama model cache at `/workspace/ollama`. Models pulled from the Ollama registry are cached here automatically — no manual upload needed.
+2. This volume stores the Ollama model cache at `/workspace/ollama/`. Models pulled from the Ollama registry are cached here automatically — no manual upload needed.
 3. For custom GGUF files, spin up a temporary CPU pod and upload to `/workspace/models/`.
+
+**Storage layout:**
+```
+Network Volume (/workspace):
+├── ollama/models/          ← Ollama model cache (persistent across restarts)
+└── models/                 ← Custom GGUF files (optional)
+```
+
+On first boot, the entrypoint pulls the model specified by `OLLAMA_MODEL` (~2–10 min depending on size). Subsequent restarts load from cache in ~30 seconds.
 
 ### Step 3: Create Pod Template
 
@@ -237,7 +246,7 @@ In the RunPod console, create a Pod Template:
 
 - **Image:** `ghcr.io/<your-org>/bratbot:runpod-latest`
 - **GPU:** RTX 3070 for small models, RTX A4000 for 14B (see table below)
-- **Container Disk:** 20 GB
+- **Container Disk:** 5 GB (models live on network volume, container image is ~900 MB)
 - **Volume:** Attach your network volume at `/workspace`
 - **Exposed Ports:** `8000/http` (Discord interactions webhook), `8001/http` (SMS webhook, optional)
 - **Environment Variables:**
@@ -260,6 +269,18 @@ In the RunPod console, create a Pod Template:
 
 # Or SSH in manually
 ./scripts/deploy-runpod.sh ssh
+```
+
+### Verify deployment
+
+```bash
+# Check all services are running
+./scripts/deploy-runpod.sh status
+
+# Verify model is loaded
+./scripts/deploy-runpod.sh ssh
+ollama list
+curl http://localhost:8000/health
 ```
 
 ### Switching models
@@ -585,6 +606,9 @@ Try a smaller model or more aggressive quantization (e.g., `qwen3:8b` instead of
 
 **"Model not found" in health check**
 Ensure the model name in `OLLAMA_MODEL` matches what's in Ollama. Run `docker compose exec ollama ollama list` to see available models.
+
+**Models not persisting after RunPod pod restart**
+Verify the network volume is attached at `/workspace`: `df /workspace`. If empty, the volume wasn't mounted — recreate the pod with the volume properly attached. Model files should exist at `/workspace/ollama/models/`.
 
 ---
 

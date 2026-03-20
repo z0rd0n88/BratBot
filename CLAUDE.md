@@ -23,6 +23,8 @@ Discord bot with a bratty, condescending personality, powered by a self-hosted L
 
 ## Deployment
 
+- **RunPod model storage**: Ollama models persist on network volume at `/workspace/ollama` (set via `OLLAMA_MODELS` in `supervisord.runpod.conf`) — container disk can be set to 5 GB minimum
+- **SSH restart from Windows fails**: `runpod-ssh-wrapper.py` can't allocate a PTY for `supervisorctl restart` — restart pods from the RunPod console instead
 - **Windows**: Use `scripts/runpod-ssh-wrapper.py` for SSH commands — WSL SSH fails due to key permission issues (0777 on Windows-mounted keys)
 - **New image requires pod restart**: `supervisorctl restart` only restarts processes in the running container; to deploy a new image, stop/restart the pod from the RunPod console
 - Supervisord on pod uses `/etc/supervisor/conf.d/supervisord.conf` (not `/etc/supervisor/supervisord.conf`)
