@@ -39,3 +39,7 @@ CLAUDE.md
 
 # Git worktrees
 .worktrees/
+
+# Deploy artifacts
+deployment.log
+CLAUDE.md
