@@ -36,3 +36,6 @@ model/*.gguf
 
 .claude/
 CLAUDE.md
+
+# Git worktrees
+.worktrees/
