@@ -23,6 +23,10 @@ Discord bot with a bratty, condescending personality, powered by a self-hosted L
 
 ## Deployment
 
+- **Windows**: Use `scripts/runpod-ssh-wrapper.py` for SSH commands — WSL SSH fails due to key permission issues (0777 on Windows-mounted keys)
+- **New image requires pod restart**: `supervisorctl restart` only restarts processes in the running container; to deploy a new image, stop/restart the pod from the RunPod console
+- Supervisord on pod uses `/etc/supervisor/conf.d/supervisord.conf` (not `/etc/supervisor/supervisord.conf`)
+- Pod logs go to `/dev/stdout` — `supervisorctl tail` won't work; check container stdout in RunPod console
 - `./scripts/deploy-runpod.sh build` — build RunPod Docker image
 - `./scripts/deploy-runpod.sh push` — push to GHCR
 - `./scripts/deploy-runpod.sh update` — build + push + restart pod
@@ -53,6 +57,7 @@ No special WSL configuration is needed — just clone and run `./scripts/deploy-
 
 ## Gotchas
 
+- `sms/.env` is gitignored — create it manually: `cp sms/.env.example sms/.env`
 - Cogs auto-discovered via `pkgutil.iter_modules()` in `bot.py` — just add a file with `async def setup(bot)` to `commands/` or `events/`
 - `model/` is not a Python package (no `__init__.py`) — tests add it to `sys.path` manually
 - Rate limiter degrades gracefully: if Redis is down, requests are allowed through
