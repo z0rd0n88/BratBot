@@ -180,38 +180,184 @@ def _run_ssh_unix(
         return 1, f"SSH error: {e}"
 
 
+def run_scp_command(
+    ssh_key: str,
+    ssh_user: str,
+    ssh_host: str,
+    ssh_port: int,
+    local_path: str,
+    remote_path: str,
+) -> tuple[int, str]:
+    """
+    Copy a local file or directory to the remote RunPod pod via SCP.
+
+    Args:
+        local_path: Local source path (supports Git Bash format on Windows)
+        remote_path: Absolute destination path on the remote pod (e.g. /model/)
+    """
+    ssh_key_path = Path(ssh_key).expanduser()
+    if not ssh_key_path.exists():
+        return 1, f"SSH key not found: {ssh_key}"
+
+    if platform.system() == "Windows" or "MSYS" in os.environ or "GIT_BASH" in os.environ:
+        return _run_scp_windows_native(
+            str(ssh_key_path), ssh_user, ssh_host, ssh_port, local_path, remote_path
+        )
+
+    return _run_scp_unix(ssh_key, ssh_user, ssh_host, ssh_port, local_path, remote_path)
+
+
+def _run_scp_windows_native(
+    ssh_key: str,
+    ssh_user: str,
+    ssh_host: str,
+    ssh_port: int,
+    local_path: str,
+    remote_path: str,
+) -> tuple[int, str]:
+    """Copy files using Windows-native scp.exe from System32."""
+    scp_exe = r"C:\Windows\System32\OpenSSH\scp.exe"
+    if not Path(scp_exe).exists():
+        return 1, (
+            f"Windows OpenSSH scp not found at {scp_exe}. "
+            "Install via: Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0"
+        )
+
+    key_path_windows = convert_bash_path_to_windows(ssh_key)
+    local_path_windows = convert_bash_path_to_windows(local_path)
+    remote_target = f"{ssh_user}@{ssh_host}:{remote_path}"
+
+    scp_cmd = [
+        scp_exe,
+        "-r",
+        "-i", key_path_windows,
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "UserKnownHostsFile=NUL",
+        "-o", "LogLevel=ERROR",
+        "-P", str(ssh_port),
+        local_path_windows,
+        remote_target,
+    ]
+
+    try:
+        env = os.environ.copy()
+        env["MSYS_NO_PATHCONV"] = "1"
+        result = subprocess.run(
+            scp_cmd,
+            text=True,
+            capture_output=True,
+            timeout=120,
+            env=env,
+        )
+        return result.returncode, result.stdout + result.stderr
+    except subprocess.TimeoutExpired:
+        return 1, "SCP timed out after 120s"
+    except Exception as e:
+        return 1, f"SCP error: {e}"
+
+
+def _run_scp_unix(
+    ssh_key: str,
+    ssh_user: str,
+    ssh_host: str,
+    ssh_port: int,
+    local_path: str,
+    remote_path: str,
+) -> tuple[int, str]:
+    """Copy files using system scp on Unix/Linux/macOS."""
+    remote_target = f"{ssh_user}@{ssh_host}:{remote_path}"
+
+    scp_cmd = [
+        "scp",
+        "-r",
+        "-i", ssh_key,
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "UserKnownHostsFile=/dev/null",
+        "-o", "LogLevel=ERROR",
+        "-P", str(ssh_port),
+        local_path,
+        remote_target,
+    ]
+
+    try:
+        result = subprocess.run(
+            scp_cmd,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        return result.returncode, result.stdout + result.stderr
+    except subprocess.TimeoutExpired:
+        return 1, "SCP timed out after 120s"
+    except Exception as e:
+        return 1, f"SCP error: {e}"
+
+
+def _parse_connection_args(args: list[str], start: int) -> dict:
+    """Parse --key, --user, --host, --port from args starting at index."""
+    result = {
+        "ssh_key": os.environ.get("RUNPOD_SSH_KEY", os.path.expanduser("~/.ssh/id_ed25519")),
+        "ssh_user": os.environ.get("RUNPOD_SSH_USER", ""),
+        "ssh_host": os.environ.get("RUNPOD_SSH_HOST", "ssh.runpod.io"),
+        "ssh_port": int(os.environ.get("RUNPOD_SSH_PORT", "22")),
+    }
+    i = start
+    while i < len(args):
+        if args[i] == "--key" and i + 1 < len(args):
+            result["ssh_key"] = args[i + 1]
+            i += 2
+        elif args[i] == "--user" and i + 1 < len(args):
+            result["ssh_user"] = args[i + 1]
+            i += 2
+        elif args[i] == "--host" and i + 1 < len(args):
+            result["ssh_host"] = args[i + 1]
+            i += 2
+        elif args[i] == "--port" and i + 1 < len(args):
+            result["ssh_port"] = int(args[i + 1])
+            i += 2
+        else:
+            i += 1
+    return result
+
+
 def main():
     """CLI entry point for direct usage."""
     if len(sys.argv) < 2:
         print("Usage: runpod-ssh-wrapper.py <command> [--key PATH] [--user USER] [--host HOST] [--port PORT]")
-        print("")
-        print("Example:")
-        print("  runpod-ssh-wrapper.py 'supervisorctl status' --key ~/.ssh/id_ed25519 --user pod-id-token --host ssh.runpod.io --port 22")
+        print("       runpod-ssh-wrapper.py scp <local-path> <remote-path> [--key PATH] ...")
         sys.exit(1)
 
-    # Parse args (simple parsing for script usage)
-    command = sys.argv[1]
-    ssh_key = os.environ.get("RUNPOD_SSH_KEY", os.path.expanduser("~/.ssh/id_ed25519"))
-    ssh_user = os.environ.get("RUNPOD_SSH_USER", "")
-    ssh_host = os.environ.get("RUNPOD_SSH_HOST", "ssh.runpod.io")
-    ssh_port = int(os.environ.get("RUNPOD_SSH_PORT", "22"))
+    subcommand = sys.argv[1]
 
-    # Override from command-line args
-    for i, arg in enumerate(sys.argv[2:], 2):
-        if arg == "--key" and i + 1 < len(sys.argv):
-            ssh_key = sys.argv[i + 1]
-        elif arg == "--user" and i + 1 < len(sys.argv):
-            ssh_user = sys.argv[i + 1]
-        elif arg == "--host" and i + 1 < len(sys.argv):
-            ssh_host = sys.argv[i + 1]
-        elif arg == "--port" and i + 1 < len(sys.argv):
-            ssh_port = int(sys.argv[i + 1])
+    if subcommand == "scp":
+        # scp mode: runpod-ssh-wrapper.py scp <local> <remote> [--key ...] [--user ...] ...
+        if len(sys.argv) < 4:
+            print("Usage: runpod-ssh-wrapper.py scp <local-path> <remote-path> [--key PATH] ...", file=sys.stderr)
+            sys.exit(1)
+        local_path = sys.argv[2]
+        remote_path = sys.argv[3]
+        conn = _parse_connection_args(sys.argv, 4)
+        if not conn["ssh_user"]:
+            print("ERROR: RUNPOD_SSH_USER is not set.", file=sys.stderr)
+            sys.exit(1)
+        exit_code, output = run_scp_command(
+            conn["ssh_key"], conn["ssh_user"], conn["ssh_host"], conn["ssh_port"],
+            local_path, remote_path,
+        )
+        print(output, end="")
+        sys.exit(exit_code)
 
-    if not ssh_user:
+    # ssh mode (original behavior): runpod-ssh-wrapper.py <command> [--key ...] ...
+    command = subcommand
+    conn = _parse_connection_args(sys.argv, 2)
+
+    if not conn["ssh_user"]:
         print("ERROR: RUNPOD_SSH_USER is not set. Set it via environment or --user flag.", file=sys.stderr)
         sys.exit(1)
 
-    exit_code, output = run_ssh_command(ssh_key, ssh_user, ssh_host, ssh_port, command)
+    exit_code, output = run_ssh_command(
+        conn["ssh_key"], conn["ssh_user"], conn["ssh_host"], conn["ssh_port"], command
+    )
     print(output, end="")
     sys.exit(exit_code)
 

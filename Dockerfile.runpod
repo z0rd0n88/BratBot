@@ -9,9 +9,6 @@ COPY pyproject.toml uv.lock* README.md ./
 RUN uv export --format requirements-txt --no-dev --no-hashes --no-emit-project > requirements.txt && \
     pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-COPY src/ src/
-RUN pip install --no-cache-dir --prefix=/install --no-deps .
-
 # ─── Stage 2: Build BratBotModel (FastAPI personality API) ────────────
 FROM python:3.12-slim AS model-builder
 
@@ -47,8 +44,11 @@ COPY --from=model-builder /install /usr/local
 COPY --from=sms-builder /install /usr/local
 COPY --from=bot-builder /install /usr/local
 
-# BratBot files
+# BratBot files — editable install so hot-update can sync source without rebuilding
 WORKDIR /app
+COPY pyproject.toml README.md /app/
+COPY src/ /app/src/
+RUN pip install --no-cache-dir --no-deps -e /app
 
 # BratBotModel files
 COPY model/ /model/
