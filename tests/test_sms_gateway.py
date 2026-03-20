@@ -3,7 +3,7 @@
 import json
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -359,3 +359,134 @@ class TestRouting:
         assert captured[0].url.path == "/bratchat"
         payload = json.loads(captured[0].content)
         assert payload["message"] == "cami"
+
+
+# ---------------------------------------------------------------------------
+# Proxy URL reconstruction
+# ---------------------------------------------------------------------------
+
+
+class TestGetWebhookUrl:
+    def test_direct_request_no_proxy(self):
+        """Without proxy headers, returns the original request URL."""
+        from starlette.requests import Request
+
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/incoming",
+            "query_string": b"",
+            "headers": [(b"host", b"localhost:8001")],
+            "scheme": "http",
+            "server": ("localhost", 8001),
+        }
+        request = Request(scope)
+        url = sms_app._get_webhook_url(request)
+        assert url == "http://localhost:8001/incoming"
+
+    def test_proxied_request_with_forwarded_headers(self):
+        """Behind a proxy, uses Host and X-Forwarded-Proto to reconstruct URL."""
+        from starlette.requests import Request
+
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/incoming",
+            "query_string": b"",
+            "headers": [
+                (b"host", b"abc123-8001.proxy.runpod.net"),
+                (b"x-forwarded-proto", b"https"),
+            ],
+            "scheme": "http",
+            "server": ("100.64.1.65", 8001),
+        }
+        request = Request(scope)
+        url = sms_app._get_webhook_url(request)
+        assert url == "https://abc123-8001.proxy.runpod.net/incoming"
+
+    def test_forwarded_proto_only(self):
+        """With only X-Forwarded-Proto (no host override), uses Host header."""
+        from starlette.requests import Request
+
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/incoming",
+            "query_string": b"",
+            "headers": [
+                (b"host", b"example.com"),
+                (b"x-forwarded-proto", b"https"),
+            ],
+            "scheme": "http",
+            "server": ("127.0.0.1", 8001),
+        }
+        request = Request(scope)
+        url = sms_app._get_webhook_url(request)
+        assert url == "https://example.com/incoming"
+
+    def test_explicit_webhook_url_overrides_headers(self, monkeypatch):
+        """TWILIO_WEBHOOK_URL takes precedence over proxy header reconstruction."""
+        from starlette.requests import Request
+
+        monkeypatch.setattr(
+            sms_settings,
+            "twilio_webhook_url",
+            "https://my-pod-8001.proxy.runpod.net/incoming",
+        )
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/incoming",
+            "query_string": b"",
+            "headers": [
+                (b"host", b"localhost:8001"),
+            ],
+            "scheme": "http",
+            "server": ("127.0.0.1", 8001),
+        }
+        request = Request(scope)
+        url = sms_app._get_webhook_url(request)
+        assert url == "https://my-pod-8001.proxy.runpod.net/incoming"
+        # Restore
+        monkeypatch.setattr(sms_settings, "twilio_webhook_url", None)
+
+    def test_forwarded_proto_comma_separated(self):
+        """Chained proxies may send comma-separated x-forwarded-proto values."""
+        from starlette.requests import Request
+
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/incoming",
+            "query_string": b"",
+            "headers": [
+                (b"host", b"abc123-8001.proxy.runpod.net"),
+                (b"x-forwarded-proto", b"https, http"),
+            ],
+            "scheme": "http",
+            "server": ("100.64.1.65", 8001),
+        }
+        request = Request(scope)
+        url = sms_app._get_webhook_url(request)
+        assert url == "https://abc123-8001.proxy.runpod.net/incoming"
+
+
+# ---------------------------------------------------------------------------
+# Error handling
+# ---------------------------------------------------------------------------
+
+
+class TestErrorHandling:
+    async def test_unhandled_exception_returns_twiml(self, sms_client, monkeypatch):
+        """Unhandled exceptions still return a TwiML <Response/>, not a 500."""
+        client, _, _ = sms_client
+
+        # Force request.form() to raise
+        async def boom(*args, **kwargs):
+            raise RuntimeError("unexpected failure")
+
+        with patch.object(sms_app.Request, "form", boom):
+            resp = await client.post("/incoming", data={"From": "+1", "Body": "hi"})
+
+        assert resp.status_code == 200
+        assert resp.text == "<Response/>"

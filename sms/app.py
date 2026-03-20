@@ -89,6 +89,29 @@ app = FastAPI(lifespan=lifespan)
 # ---------------------------------------------------------------------------
 
 
+def _get_webhook_url(request: Request) -> str:
+    """Return the external URL that Twilio signed against.
+
+    If TWILIO_WEBHOOK_URL is set, use it directly — this is the most reliable
+    approach behind reverse proxies (RunPod, ngrok, etc.).
+
+    Otherwise, reconstruct the URL from forwarded headers. Behind a reverse proxy,
+    request.url contains the internal URL (e.g. http://0.0.0.0:8001/incoming).
+    Twilio computes its signature against the external URL, so we reconstruct it
+    from the Host and X-Forwarded-Proto headers set by the proxy.
+    """
+    if settings.twilio_webhook_url:
+        return settings.twilio_webhook_url
+
+    # x-forwarded-proto may contain comma-separated values from chained proxies
+    # (e.g. "https, http") — take the first (outermost/client-facing) value.
+    raw_proto = request.headers.get("x-forwarded-proto", "")
+    proto = raw_proto.split(",")[0].strip() if raw_proto else request.url.scheme
+    host = request.headers.get("host", str(request.url.netloc))
+    path = request.url.path
+    return f"{proto}://{host}{path}"
+
+
 async def _is_rate_limited(phone: str) -> bool:
     """Return True if this phone number has exceeded the per-user rate limit.
 
@@ -202,28 +225,47 @@ async def incoming_sms(request: Request, background_tasks: BackgroundTasks):
     if not _sms_configured():
         raise HTTPException(status_code=503, detail="SMS not configured")
 
-    form = await request.form()
-    from_number: str = form.get("From", "")
-    body: str = form.get("Body", "").strip()
+    try:
+        form = await request.form()
+        from_number: str = form.get("From", "")
+        body: str = form.get("Body", "").strip()
 
-    # Validate Twilio signature to reject forged requests
-    if not settings.twilio_skip_validation:
-        signature = request.headers.get("X-Twilio-Signature", "")
-        url = str(request.url)
-        post_params = dict(form)
-        if not _validator.validate(url, post_params, signature):
-            logger.warning("invalid_twilio_signature from=%s", from_number)
-            raise HTTPException(status_code=403, detail="Invalid Twilio signature")
+        # Validate Twilio signature to reject forged requests
+        if not settings.twilio_skip_validation:
+            signature = request.headers.get("X-Twilio-Signature", "")
+            url = _get_webhook_url(request)
+            post_params = dict(form)
+            logger.debug(
+                "twilio_signature_check url=%s signature=%s param_keys=%s",
+                url,
+                signature[:12] + "..." if signature else "(empty)",
+                sorted(post_params.keys()),
+            )
+            if not _validator.validate(url, post_params, signature):
+                logger.warning(
+                    "invalid_twilio_signature from=%s url=%s "
+                    "x_forwarded_proto=%s host=%s",
+                    from_number,
+                    url,
+                    request.headers.get("x-forwarded-proto", "(not set)"),
+                    request.headers.get("host", "(not set)"),
+                )
+                raise HTTPException(status_code=403, detail="Invalid Twilio signature")
 
-    if not from_number:
-        raise HTTPException(status_code=400, detail="Missing From field")
+        if not from_number:
+            raise HTTPException(status_code=400, detail="Missing From field")
 
-    if not body:
-        logger.info("sms_empty_body from=%s", from_number)
-        background_tasks.add_task(_safe_send_sms, from_number, _EMPTY_MESSAGE_REPLY)
+        if not body:
+            logger.info("sms_empty_body from=%s", from_number)
+            background_tasks.add_task(_safe_send_sms, from_number, _EMPTY_MESSAGE_REPLY)
+            return Response(content="<Response/>", media_type="text/xml")
+
+        background_tasks.add_task(_process_sms, from_number, body)
+
+        # Return empty TwiML immediately — actual reply is sent via Twilio REST API
         return Response(content="<Response/>", media_type="text/xml")
-
-    background_tasks.add_task(_process_sms, from_number, body)
-
-    # Return empty TwiML immediately — actual reply is sent via Twilio REST API
-    return Response(content="<Response/>", media_type="text/xml")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("incoming_sms_unhandled_error")
+        return Response(content="<Response/>", media_type="text/xml")
