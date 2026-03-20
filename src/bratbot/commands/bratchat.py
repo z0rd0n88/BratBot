@@ -66,8 +66,11 @@ class BratCog(commands.Cog):
             await interaction.followup.send(response["reply"])
 
         try:
-            await self.bot.request_queue.enqueue(interaction.channel, _call_llm())
-        except LLMError:
+            if interaction.channel is not None:
+                await self.bot.request_queue.enqueue(interaction.channel, _call_llm())
+            else:
+                await _call_llm()
+        except (LLMError, KeyError):
             await interaction.followup.send(LLM_ERROR_REPLY)
 
 

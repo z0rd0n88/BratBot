@@ -29,7 +29,7 @@ class RateLimiter:
         try:
             async with self.redis.pipeline(transaction=True) as pipe:
                 pipe.incr(key)
-                pipe.expire(key, window)
+                pipe.expire(key, window, nx=True)
                 results = await pipe.execute()
                 count = results[0]
             return count <= max_requests, count
