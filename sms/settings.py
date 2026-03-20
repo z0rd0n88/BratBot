@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     rate_limit_user_seconds: int = 5
     log_level: str = "INFO"
 
+    # Explicit webhook URL for Twilio signature validation.
+    # Required behind reverse proxies (RunPod, ngrok, etc.) where header-based
+    # URL reconstruction may not match the URL Twilio signed against.
+    # Example: https://<pod-id>-8001.proxy.runpod.net/incoming
+    twilio_webhook_url: str | None = None
+
     # Dev/testing only — skip Twilio signature validation
     twilio_skip_validation: bool = False
 
