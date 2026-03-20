@@ -87,6 +87,9 @@ class CamiChatRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Personality prompts
 # ---------------------------------------------------------------------------
+PROMPT_DIR = Path(__file__).parent / "prompts"
+
+
 def get_system_prompt(level: int) -> str:
     """Return the system prompt for the given brattiness level."""
     if level == 3:
@@ -109,9 +112,6 @@ def get_system_prompt(level: int) -> str:
         ),
     }
     return prompts.get(level, prompts[2])
-
-
-PROMPT_DIR = Path(__file__).parent / "prompts"
 
 
 def get_cami_system_prompt() -> str:

@@ -74,6 +74,7 @@ class BratBot(commands.Bot):
 
     async def _load_extensions(self) -> None:
         """Auto-discover and load all cog modules from commands/ and events/."""
+        failed: list[str] = []
         for package_name in _COG_PACKAGES:
             pkg = __import__(package_name, fromlist=[""])
             for _importer, modname, _ispkg in pkgutil.iter_modules(pkg.__path__):
@@ -88,6 +89,9 @@ class BratBot(commands.Bot):
                         error=str(e),
                         traceback=traceback.format_exc(),
                     )
+                    failed.append(ext)
+        if failed:
+            raise RuntimeError(f"Failed to load extensions: {failed}")
 
     def _register_exception_handlers(self) -> None:
         """Register sys.excepthook and asyncio exception handler for unhandled errors."""

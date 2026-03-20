@@ -64,7 +64,7 @@ class MessageCog(commands.Cog):
 
         try:
             await self.bot.request_queue.enqueue(message.channel, _call_llm())
-        except LLMError:
+        except (LLMError, KeyError):
             await message.reply(LLM_ERROR_REPLY)
 
 
