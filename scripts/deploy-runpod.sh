@@ -144,21 +144,21 @@ pod_ssh() {
         err "RUNPOD_SSH_USER is not set."
         echo "Set it in .env.runpod with the full SSH user identifier:"
         echo "  RUNPOD_SSH_USER=pod-id-sessiontoken"
-        echo "Example: RUNPOD_SSH_USER=lvgn83xrikynaw-64411dcb"
+        echo "Example: RUNPOD_SSH_USER=28ca8h1pwx7l7j-64411dcb"
         echo ""
         echo "Get this from your RunPod connection string:"
         echo "  ssh <RUNPOD_SSH_USER>@${RUNPOD_SSH_HOST} -i ~/.ssh/id_ed25519"
         exit 1
     fi
 
-    # RunPod SSH format: <pod-id-sessiontoken>@ssh.runpod.io
-    ssh -T -i "${RUNPOD_SSH_KEY}" \
-        -o StrictHostKeyChecking=no \
-        -o UserKnownHostsFile=/dev/null \
-        -o LogLevel=ERROR \
-        -p "${RUNPOD_SSH_PORT}" \
-        "${RUNPOD_SSH_USER}@${RUNPOD_SSH_HOST}" \
-        "$@"
+    # Use the Python SSH wrapper to handle Windows PTY allocation issues
+    # This wrapper detects the OS and uses Windows-native OpenSSH on Windows,
+    # and falls back to system SSH on Unix-like systems.
+    python3 "${SCRIPT_DIR}/runpod-ssh-wrapper.py" "$@" \
+        --key "${RUNPOD_SSH_KEY}" \
+        --user "${RUNPOD_SSH_USER}" \
+        --host "${RUNPOD_SSH_HOST}" \
+        --port "${RUNPOD_SSH_PORT}"
 }
 
 # ─── Commands ────────────────────────────────────────────────────────
