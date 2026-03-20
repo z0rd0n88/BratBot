@@ -29,6 +29,12 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 # ─── Stage 4: Runtime — all services via supervisord ──────────────────
 FROM python:3.12-slim AS runtime
 
+# Tell NVIDIA container toolkit to expose GPU devices and driver libs.
+# Without these, the toolkit won't map /dev/nvidia* even if the host has GPUs.
+# Ollama bundles its own CUDA runtime, so we don't need a CUDA base image.
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     supervisor curl ca-certificates zstd \
     && rm -rf /var/lib/apt/lists/*

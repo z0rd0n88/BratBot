@@ -151,14 +151,14 @@ pod_ssh() {
         exit 1
     fi
 
-    # RunPod SSH format: <pod-id-sessiontoken>@ssh.runpod.io
-    ssh -T -i "${RUNPOD_SSH_KEY}" \
-        -o StrictHostKeyChecking=no \
-        -o UserKnownHostsFile=/dev/null \
-        -o LogLevel=ERROR \
-        -p "${RUNPOD_SSH_PORT}" \
-        "${RUNPOD_SSH_USER}@${RUNPOD_SSH_HOST}" \
-        "$@"
+    # Use the Python SSH wrapper to handle Windows PTY allocation issues
+    # This wrapper detects the OS and uses Windows-native OpenSSH on Windows,
+    # and falls back to system SSH on Unix-like systems.
+    python3 "${SCRIPT_DIR}/runpod-ssh-wrapper.py" "$@" \
+        --key "${RUNPOD_SSH_KEY}" \
+        --user "${RUNPOD_SSH_USER}" \
+        --host "${RUNPOD_SSH_HOST}" \
+        --port "${RUNPOD_SSH_PORT}"
 }
 
 # ─── Commands ────────────────────────────────────────────────────────
