@@ -24,3 +24,7 @@ class Settings(BaseSettings):
     # LLM request queue
     llm_queue_max_depth: int = 5
     llm_timeout_seconds: int = 30
+
+    # Age verification
+    terms_url: str  # Public URL for Terms of Service page
+    privacy_url: str  # Public URL for Privacy Policy page

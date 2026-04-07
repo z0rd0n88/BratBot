@@ -16,6 +16,8 @@ from bratbot.services.llm_client import LLMClient
 from tests.discord_keys import verify_hex  # noqa: E402
 
 os.environ["DISCORD_PUBLIC_KEY"] = verify_hex
+os.environ.setdefault("TERMS_URL", "http://test")
+os.environ.setdefault("PRIVACY_URL", "http://test")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "model"))
 
