@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     llm_queue_max_depth: int = 5
     llm_timeout_seconds: int = 30
 
-    # Age verification
-    terms_url: str  # Public URL for Terms of Service page
-    privacy_url: str  # Public URL for Privacy Policy page
+    # Age verification — optional so processes that don't use the age gate (e.g. bonniebot)
+    # can start without these being set; required in prod for the disclaimer links to work
+    terms_url: str = ""  # Public URL for Terms of Service page
+    privacy_url: str = ""  # Public URL for Privacy Policy page
