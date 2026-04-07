@@ -48,6 +48,7 @@ CLAUDE.md
 .CLAUDE.automatons.md
 .CLAUDE.automatons.json
 .CLAUDE.automatons.hash
+.CLAUDE.inventory.md
 
 # Private strategy/business docs (never publish)
 docs/private/
