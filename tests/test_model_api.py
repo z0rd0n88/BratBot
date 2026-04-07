@@ -18,6 +18,30 @@ def client():
 # ---------------------------------------------------------------------------
 
 
+class TestChatRequestMessageValidation:
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "what's up",                        # apostrophe
+            'say "hello" to me',                # double quotes
+            "back\\slash",                      # backslash
+            "line1\nline2",                     # newline
+            "tab\there",                        # tab
+            "100% done & dusted",               # percent + ampersand
+            "<script>alert('xss')</script>",    # angle brackets
+            "emoji 🎉 and kanji こんにちは",    # mixed unicode
+        ],
+    )
+    def test_accepts_special_characters(self, message):
+        """ChatRequest must accept any valid string content without validation errors."""
+        req = ChatRequest(message=message)
+        assert req.message == message
+
+    def test_rejects_empty_message(self):
+        with pytest.raises(ValidationError):
+            ChatRequest(message="")
+
+
 class TestChatRequestBratLevel:
     def test_brat_level_defaults_to_3(self):
         req = ChatRequest(message="hi")
@@ -64,3 +88,19 @@ class TestBratchatRequestValidation:
     def test_rejects_missing_message(self, client):
         resp = client.post("/bratchat", json={"brat_level": 2})
         assert resp.status_code == 422
+
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "what's up",                        # apostrophe
+            'say "hello" to me',                # double quotes
+            "back\\slash",                      # backslash
+            "line1\nline2",                     # newline
+            "<script>alert('xss')</script>",    # angle brackets
+            "emoji 🎉 こんにちは",              # unicode
+        ],
+    )
+    def test_accepts_special_characters_in_request(self, client, message):
+        """Special characters must not cause a 422 validation error."""
+        resp = client.post("/bratchat", json={"message": message})
+        assert resp.status_code != 422

@@ -296,6 +296,26 @@ class TestEdgeCases:
         assert len(call_kwargs["body"]) == 1600
         await http_client.aclose()
 
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "what's up",                        # apostrophe
+            'say "hello" to me',                # double quotes
+            "back\\slash",                      # backslash
+            "line1\nline2",                     # newline
+            "100% done & dusted",               # percent + ampersand
+            "<script>alert('xss')</script>",    # angle brackets
+            "emoji 🎉 こんにちは",              # unicode
+        ],
+    )
+    async def test_special_characters_forwarded_to_llm_intact(self, sms_client, message):
+        """Special characters in the SMS body must reach the LLM unchanged."""
+        client, _, captured = sms_client
+        await _post_incoming(client, body=message)
+        assert len(captured) == 1
+        payload = json.loads(captured[0].content)
+        assert payload["message"] == message
+
 
 # ---------------------------------------------------------------------------
 # Keyword prefix routing (bratchat vs camichat)
