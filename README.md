@@ -6,9 +6,11 @@
 
 # Brat Bot
 
-A Discord bot that answers questions with configurable levels of attitude. Brat Bot is performatively sassy: always helpful, never without drama. It answers your questions, roasts your phrasing, and makes sure you know it's doing you a favor.
+A multi-personality Discord bot monorepo powered by a self-hosted LLM (via Ollama) with a custom personality API layer.
 
-Powered by a self-hosted LLM (via Ollama) with a custom personality API layer.
+**BratBot** is performatively sassy: always helpful, never without drama. It answers your questions, roasts your phrasing, and makes sure you know it's doing you a favor.
+
+**BonnieBot** is a second personality that runs as a separate Discord bot but shares the same infrastructure, services, and bug fixes.
 
 ---
 
@@ -19,14 +21,16 @@ Powered by a self-hosted LLM (via Ollama) with a custom personality API layer.
 │              app container (single image)                │
 │                                                          │
 │  ┌───────────┐                                           │
-│  │  BratBot  │──────────────────────────►┐              │
+│  │  BratBot  │─── POST /bratchat ───────►┐              │
 │  │  discord  │                           │              │
 │  │  .py bot  │                           │              │
 │  └───────────┘                           ▼              │
 │                           ┌──────────────────────────────┐
-│                           │       BratBotModel           │
-│                     :8000 │  FastAPI + brat personality  │
-│                           └──────────────┬───────────────┘
+│  ┌───────────┐            │       BratBotModel           │
+│  │ BonnieBot │─── POST /bonniebot ──►    (FastAPI)       │
+│  │  discord  │            │   personality endpoints      │
+│  │  .py bot  │            └──────────────┬───────────────┘
+│  └───────────┘                           │                │
 │                                          │                │
 └──────────────────────────────────────────┼──────────────┘
                                            │ :11434
@@ -43,23 +47,25 @@ Powered by a self-hosted LLM (via Ollama) with a custom personality API layer.
                                └──────────────┘
 ```
 
-**Data flow:** Discord message → BratBot → `POST localhost:8000/bratchat` → BratBotModel → Ollama `/api/chat` → LLM reply → Discord
+**Data flow:** Discord message → Bot → `POST localhost:8000/<personality>` → BratBotModel → Ollama `/api/chat` → LLM reply → Discord
 
-All services run in the same container (managed by supervisord). Ollama runs as a separate GPU-enabled service. Redis provides rate limiting.
+Each bot has its own personality endpoint (`/bratchat`, `/bonniebot`) with isolated system prompts. Both bots share the same model server, Ollama instance, and Redis. All services run in the same container (managed by supervisord).
 
 ---
 
 ## Features
 
+- **Multi-Personality Monorepo** — Multiple Discord bots sharing one codebase. Bug fixes apply to all bots automatically.
 - **Self-Hosted LLM** — Runs on your own hardware via Ollama. No API keys, no usage fees, full control.
-- **`/bratchat` Slash Command** — Ask a question with an optional brat level (1–3).
-- **@Mention Support** — Mention the bot in any channel for free-form conversation.
-- **Adjustable Brattiness** — 5 levels from mildly tedious to maximum diva.
+- **Slash Commands** — `/bratchat` (BratBot), `/bonniebot` (BonnieBot), plus shared commands (`/ping`, `/intensity`, `/verbose`).
+- **@Mention Support** — Mention either bot in any channel for free-form conversation.
+- **Adjustable Intensity** — Per-user intensity levels (1–3) via the `/intensity` command.
+- **Adjustable Verbosity** — Per-user response length (1–3) via the `/verbose` command.
 - **Custom GGUF Models** — Import your own quantized model files via Modelfile, or pull from Ollama's registry.
 - **Rate Limiting** — Per-user cooldowns and per-channel rate limits via Redis.
 - **Request Queue** — Per-channel async queue prevents overlapping LLM responses.
 - **Structured Logging** — JSON logs in production, colored console in development.
-- **Global Error Handling** — In-character error messages for every failure mode.
+- **Global Error Handling** — In-character error messages for every failure mode, per personality.
 
 ---
 
@@ -165,10 +171,11 @@ docker compose up --build
 
 ### 4. Verify
 
-- The bot should appear online in your Discord server.
-- Run `/ping` — responds with "Pong" and WebSocket latency.
-- Run `/bratchat How do loops work?` — responds with a bratty explanation.
-- @mention the bot — responds via the LLM pipeline.
+- Both bots should appear online in your Discord server.
+- Run `/ping` on either bot — responds with "Pong" and WebSocket latency.
+- Run `/bratchat How do loops work?` — BratBot responds with a bratty explanation.
+- Run `/bonniebot Hello!` — BonnieBot responds with its own personality.
+- @mention either bot — responds via the LLM pipeline.
 
 ---
 
@@ -185,7 +192,8 @@ RunPod GPU Pod (stateless)
 ├── supervisord
 │   ├── ollama serve          (GPU, port 11434)
 │   ├── model (uvicorn)       (port 8000)
-│   └── bot (discord.py)      (outbound WebSocket)
+│   ├── bot (bratbot)         (outbound WebSocket)
+│   └── bonniebot             (outbound WebSocket)
 └── /workspace (Network Volume)
     ├── models/Qwen_Qwen3-14B-Q4_K_M.gguf
     └── ollama/
@@ -349,6 +357,7 @@ For changes that add or remove Python dependencies (i.e., `pyproject.toml` or
 | Service | Image | Ports | Purpose |
 |---|---|---|---|
 | `app` | Built from Dockerfile | 8000 | BratBot (Discord) + BratBotModel |
+| `bonniebot` | Built from Dockerfile | — | BonnieBot (Discord) — shares model server via `app` |
 | `ollama` | `ollama/ollama` | 11434 | LLM inference (GPU) |
 | `redis` | `redis:7-alpine` | 6379 | Rate limits |
 
@@ -362,8 +371,11 @@ For changes that add or remove Python dependencies (i.e., `pyproject.toml` or
 # Install dependencies
 uv sync --extra dev
 
-# Run the bot (requires Redis and Ollama running locally)
+# Run BratBot (requires Redis and Ollama running locally)
 uv run python -m bratbot
+
+# Run BonnieBot (separate terminal, requires BONNIEBOT_* env vars)
+uv run python -m bonniebot
 ```
 
 ### Development with Docker (hot reload)
@@ -401,10 +413,10 @@ BratBot/
   pyproject.toml              # Dependencies and tool config
   Dockerfile                  # Combined BratBot + BratBotModel image (local)
   Dockerfile.runpod           # RunPod image (includes Ollama)
-  docker-compose.yml          # All services (app, ollama, redis)
+  docker-compose.yml          # All services (app, bonniebot, ollama, redis)
   docker-compose.override.yml # Dev overrides (hot reload, debug logging)
   supervisord.conf            # Process manager for local container
-  supervisord.runpod.conf     # Process manager for RunPod (ollama + model + bot)
+  supervisord.runpod.conf     # Process manager for RunPod (ollama + model + bots)
   Modelfile                   # Ollama model import definition (for GGUF files)
   .env.example                # Environment variable template (local)
   .env.runpod.example         # RunPod deployment config template
@@ -412,35 +424,72 @@ BratBot/
     deploy-runpod.sh          # Build, push, switch models, manage pod
     runpod-entrypoint.sh      # RunPod container startup script
   model/
-    app.py                    # BratBotModel FastAPI app (personality API)
+    app.py                    # BratBotModel FastAPI app (personality endpoints)
+    prompts/                  # System prompt files per personality
     requirements.txt          # Model API dependencies
   src/
-    bratbot/
-      __main__.py             # Entry point
+    bratbot/                  # BratBot + shared infrastructure
+      __main__.py             # Entry point (python -m bratbot)
       bot.py                  # BratBot class — lifecycle, extensions, services
+      personality.py          # Personality dataclass + BRAT_PERSONALITY
       config/
         settings.py           # pydantic-settings (env var validation)
-      commands/
-        ping.py               # /ping slash command
-        bratchat.py           # /bratchat slash command (LLM query)
-      events/
+      commands/               # BratBot-specific slash commands
+        ping.py               # /ping
+        bratchat.py           # /bratchat (LLM query)
+        intensity.py          # /intensity (1-3 attitude level)
+        verbose.py            # /verbose (1-3 response length)
+      events/                 # Shared event handlers (used by all bots)
         ready.py              # on_ready listener
         guild.py              # Guild join/remove logging
         messages.py           # @mention → LLM pipeline
         errors.py             # Global error handler
-      services/
-        llm_client.py         # Async HTTP client for BratBotModel API
+      services/               # Shared services (used by all bots)
+        llm_client.py         # Async HTTP client for personality API
         rate_limiter.py       # Redis rate limiting
         request_queue.py      # Per-channel async LLM queue
+        intensity_store.py    # Per-user intensity preference (Redis)
+        verbosity_store.py    # Per-user verbosity preference (Redis)
       utils/
         logger.py             # structlog setup
         redis.py              # Async Redis client singleton
+    bonniebot/                # BonnieBot personality (thin wrapper)
+      __main__.py             # Entry point (python -m bonniebot)
+      bot.py                  # BonnieBot class — loads bratbot.events
+      personality.py          # BONNIE_PERSONALITY strings
+      config/
+        settings.py           # BONNIEBOT_* env vars
+      commands/               # BonnieBot-specific slash commands
+        bonniebot.py          # /bonniebot (LLM query)
+        ping.py               # /ping
+        intensity.py          # /intensity
+        verbose.py            # /verbose
   tests/
     conftest.py               # Shared fixtures
-    test_llm_client.py        # 24 tests for LLM client
+    test_llm_client.py        # LLM client tests
+    test_messages_handler.py  # Message dedup tests
 ```
 
 ---
+
+## Personality System
+
+The monorepo supports multiple bot personalities sharing one codebase. Each personality is a thin wrapper that defines:
+
+1. **Response strings** — rate-limit messages, error messages, empty-mention replies (all in-character)
+2. **LLM system prompt** — the personality file in `model/prompts/` that defines how the bot talks
+3. **Chat endpoint** — each bot calls its own model server endpoint (`/bratchat`, `/bonniebot`)
+4. **Slash commands** — each bot has its own command names (`/bratchat`, `/bonniebot`)
+
+Shared infrastructure (event handlers, services, rate limiting, dedup) lives in `bratbot.events` and `bratbot.services`. BonnieBot loads `bratbot.events` as its event source, so bug fixes to message handling, error routing, and rate limiting automatically apply to both bots.
+
+### Adding a new personality
+
+1. Create `src/<botname>/` mirroring `src/bonniebot/` structure
+2. Define a `Personality` instance with your bot's strings and endpoint
+3. Set `_COG_PACKAGES = ("bratbot.events", "<botname>.commands")` in your bot class
+4. Add a new endpoint in `model/app.py` and a system prompt in `model/prompts/`
+5. Add env vars, docker-compose service, and supervisord program
 
 ## Brat Levels
 
@@ -474,12 +523,13 @@ OLLAMA_NUM_CTX=32768
 
 ## Environment Variables
 
-### Discord / Core (`.env`)
+### BratBot (`.env`)
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `DISCORD_BOT_TOKEN` | Yes | — | Bot token from Discord Developer Portal |
 | `DISCORD_CLIENT_ID` | Yes | — | Application ID from Discord Developer Portal |
+| `DISCORD_PUBLIC_KEY` | Yes | — | Ed25519 key for interaction signature verification |
 | `LLM_API_URL` | Yes | — | BratBotModel URL (`http://localhost:8000` in Docker) |
 | `REDIS_URL` | Yes | — | Redis connection string |
 | `LOG_LEVEL` | No | `INFO` | Logging level |
@@ -493,29 +543,57 @@ OLLAMA_NUM_CTX=32768
 | `OLLAMA_MODEL` | No | `qwen3-14b` | Ollama model name |
 | `LLM_MODELS_DIR` | No | — | Host path to GGUF model files (mounted into Ollama at `/models`) |
 
+### BonnieBot (`.env`)
+
+BonnieBot uses the `BONNIEBOT_` prefix for all settings. Only Discord credentials differ; `LLM_API_URL` and `REDIS_URL` point to the same shared services.
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `BONNIEBOT_DISCORD_BOT_TOKEN` | Yes | — | BonnieBot token (separate Discord application) |
+| `BONNIEBOT_DISCORD_CLIENT_ID` | Yes | — | BonnieBot application ID |
+| `BONNIEBOT_DISCORD_PUBLIC_KEY` | Yes | — | BonnieBot Ed25519 key |
+| `BONNIEBOT_LLM_API_URL` | Yes | — | Same model server as BratBot |
+| `BONNIEBOT_REDIS_URL` | Yes | — | Same Redis as BratBot |
+
 ---
 
 ## Discord Bot Setup
 
+Each personality requires its own Discord application. Repeat these steps for both BratBot and BonnieBot:
+
 1. Go to the [Discord Developer Portal](https://discord.com/developers/applications) and create a new application.
-2. Under **Bot**, click "Add Bot" and copy the token → `DISCORD_BOT_TOKEN`.
-3. Copy the Application ID from **General Information** → `DISCORD_CLIENT_ID`.
-4. Under **Bot**, enable **Message Content Intent** (required for @mention support).
-5. Generate an invite URL under **OAuth2 → URL Generator**:
+2. Under **Bot**, click "Add Bot" and copy the token → `DISCORD_BOT_TOKEN` (or `BONNIEBOT_DISCORD_BOT_TOKEN`).
+3. Copy the Application ID from **General Information** → `DISCORD_CLIENT_ID` (or `BONNIEBOT_DISCORD_CLIENT_ID`).
+4. Copy the Public Key from **General Information** → `DISCORD_PUBLIC_KEY` (or `BONNIEBOT_DISCORD_PUBLIC_KEY`).
+5. Under **Bot**, enable **Message Content Intent** (required for @mention support).
+6. Generate an invite URL under **OAuth2 → URL Generator**:
    - Scopes: `bot`, `applications.commands`
    - Permissions: `Send Messages`, `Embed Links`, `Read Message History`, `Use Slash Commands`
-6. Invite the bot to your server.
+7. Invite the bot to your server.
 
 ---
 
 ## Command Reference
 
+### BratBot Commands
+
 | Command | Description |
 |---|---|
 | `/ping` | Check if the bot is alive (returns latency) |
-| `/bratchat <message> [brat_level]` | Ask a question with optional attitude level (1–3) |
+| `/bratchat <message>` | Ask BratBot a question |
+| `/intensity [1-3]` | Set or view your preferred brat intensity (1=mild, 2=medium, 3=maximum) |
+| `/verbose [1-3]` | Set or view your preferred response length (1=short, 2=medium, 3=long) |
 
-You can also @mention the bot in any channel for conversational responses (uses the default brat level).
+### BonnieBot Commands
+
+| Command | Description |
+|---|---|
+| `/ping` | Check if the bot is alive (returns latency) |
+| `/bonniebot <message>` | Talk to Bonnie |
+| `/intensity [1-3]` | Set or view your preferred intensity |
+| `/verbose [1-3]` | Set or view your preferred response length |
+
+You can also @mention either bot in any channel for conversational responses.
 
 ---
 
