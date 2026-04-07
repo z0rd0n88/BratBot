@@ -29,6 +29,13 @@ OLLAMA_TEMPERATURE = float(os.environ.get("OLLAMA_TEMPERATURE", "0.9"))
 OLLAMA_NUM_PREDICT = int(os.environ.get("OLLAMA_NUM_PREDICT", "-1"))
 OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "32768"))
 
+DISCORD_MAX_LENGTH = 2000
+_MAX_REPLY_RETRIES = 2
+_DISCORD_LENGTH_INSTRUCTION = (
+    "\n\n[IMPORTANT: Your entire response must be 2000 characters or fewer. "
+    "This is a hard platform limit. Do not exceed it under any circumstances.]"
+)
+
 # Shared async HTTP client (created in lifespan)
 _http_client: httpx.AsyncClient | None = None
 
@@ -171,7 +178,7 @@ async def bratchat(request: ChatRequest):
         "model": OLLAMA_MODEL,
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": request.message},
+            {"role": "user", "content": request.message + _DISCORD_LENGTH_INSTRUCTION},
         ],
         "stream": False,
         "options": {
@@ -181,24 +188,40 @@ async def bratchat(request: ChatRequest):
         },
     }
 
-    try:
-        start = time.perf_counter()
-        resp = await _http_client.post("/api/chat", json=ollama_payload)
-        elapsed = time.perf_counter() - start
-        logger.info("[%s] inference completed in %.2f seconds", request_id, elapsed)
-    except httpx.TimeoutException:
-        logger.error("[%s] Ollama request timed out", request_id)
-        raise HTTPException(status_code=504, detail="LLM inference timed out") from None
-    except httpx.HTTPError as e:
-        logger.error("[%s] Ollama request failed: %s", request_id, e)
-        raise HTTPException(status_code=503, detail=f"Ollama not reachable: {e}") from None
+    reply = "[Model returned empty content]"
+    for attempt in range(_MAX_REPLY_RETRIES + 1):
+        try:
+            start = time.perf_counter()
+            resp = await _http_client.post("/api/chat", json=ollama_payload)
+            elapsed = time.perf_counter() - start
+            logger.info("[%s] inference completed in %.2f seconds", request_id, elapsed)
+        except httpx.TimeoutException:
+            logger.error("[%s] Ollama request timed out", request_id)
+            raise HTTPException(status_code=504, detail="LLM inference timed out") from None
+        except httpx.HTTPError as e:
+            logger.error("[%s] Ollama request failed: %s", request_id, e)
+            raise HTTPException(status_code=503, detail=f"Ollama not reachable: {e}") from None
 
-    if resp.status_code != 200:
-        logger.error("[%s] Ollama returned status %d: %s", request_id, resp.status_code, resp.text)
-        raise HTTPException(status_code=500, detail="Inference error")
+        if resp.status_code != 200:
+            logger.error("[%s] Ollama returned status %d: %s", request_id, resp.status_code, resp.text)
+            raise HTTPException(status_code=500, detail="Inference error")
 
-    data = resp.json()
-    reply = data.get("message", {}).get("content", "[Model returned empty content]")
+        data = resp.json()
+        reply = data.get("message", {}).get("content", "[Model returned empty content]")
+
+        if len(reply) <= DISCORD_MAX_LENGTH:
+            break
+        if attempt < _MAX_REPLY_RETRIES:
+            logger.warning(
+                "[%s] reply too long (%d chars), retrying (attempt %d/%d)",
+                request_id, len(reply), attempt + 1, _MAX_REPLY_RETRIES + 1,
+            )
+        else:
+            logger.error(
+                "[%s] reply still too long (%d chars) after %d retries, truncating",
+                request_id, len(reply), _MAX_REPLY_RETRIES,
+            )
+            reply = reply[:DISCORD_MAX_LENGTH]
 
     return {
         "request_id": request_id,
@@ -225,7 +248,7 @@ async def camichat(request: CamiChatRequest):
         "model": OLLAMA_MODEL,
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": request.message},
+            {"role": "user", "content": request.message + _DISCORD_LENGTH_INSTRUCTION},
         ],
         "stream": False,
         "options": {
@@ -235,24 +258,40 @@ async def camichat(request: CamiChatRequest):
         },
     }
 
-    try:
-        start = time.perf_counter()
-        resp = await _http_client.post("/api/chat", json=ollama_payload)
-        elapsed = time.perf_counter() - start
-        logger.info("[%s] camichat inference completed in %.2f seconds", request_id, elapsed)
-    except httpx.TimeoutException:
-        logger.error("[%s] Ollama request timed out", request_id)
-        raise HTTPException(status_code=504, detail="LLM inference timed out") from None
-    except httpx.HTTPError as e:
-        logger.error("[%s] Ollama request failed: %s", request_id, e)
-        raise HTTPException(status_code=503, detail=f"Ollama not reachable: {e}") from None
+    reply = "[Model returned empty content]"
+    for attempt in range(_MAX_REPLY_RETRIES + 1):
+        try:
+            start = time.perf_counter()
+            resp = await _http_client.post("/api/chat", json=ollama_payload)
+            elapsed = time.perf_counter() - start
+            logger.info("[%s] camichat inference completed in %.2f seconds", request_id, elapsed)
+        except httpx.TimeoutException:
+            logger.error("[%s] Ollama request timed out", request_id)
+            raise HTTPException(status_code=504, detail="LLM inference timed out") from None
+        except httpx.HTTPError as e:
+            logger.error("[%s] Ollama request failed: %s", request_id, e)
+            raise HTTPException(status_code=503, detail=f"Ollama not reachable: {e}") from None
 
-    if resp.status_code != 200:
-        logger.error("[%s] Ollama returned status %d: %s", request_id, resp.status_code, resp.text)
-        raise HTTPException(status_code=500, detail="Inference error")
+        if resp.status_code != 200:
+            logger.error("[%s] Ollama returned status %d: %s", request_id, resp.status_code, resp.text)
+            raise HTTPException(status_code=500, detail="Inference error")
 
-    data = resp.json()
-    reply = data.get("message", {}).get("content", "[Model returned empty content]")
+        data = resp.json()
+        reply = data.get("message", {}).get("content", "[Model returned empty content]")
+
+        if len(reply) <= DISCORD_MAX_LENGTH:
+            break
+        if attempt < _MAX_REPLY_RETRIES:
+            logger.warning(
+                "[%s] camichat reply too long (%d chars), retrying (attempt %d/%d)",
+                request_id, len(reply), attempt + 1, _MAX_REPLY_RETRIES + 1,
+            )
+        else:
+            logger.error(
+                "[%s] camichat reply still too long (%d chars) after %d retries, truncating",
+                request_id, len(reply), _MAX_REPLY_RETRIES,
+            )
+            reply = reply[:DISCORD_MAX_LENGTH]
 
     return {
         "request_id": request_id,
