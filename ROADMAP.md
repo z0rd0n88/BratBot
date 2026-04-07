@@ -14,7 +14,7 @@ Quick wins that fix broken behavior and fill foundational gaps before new featur
 | [#5](https://github.com/z0rd0n88/BratBot/issues/5) | Include user input query in LLM prompt | Bot can't properly respond without seeing what the user said |
 
 ### Key deliverables
-- Identify and fix the apostrophe/special-character processing bug across all clients (Discord, SMS, Telegram)
+- Identify and fix the apostrophe/special-character processing bug across all clients (Discord, Telegram)
 - Add test coverage for special characters in user input
 - Ensure the user's original message is always passed to the LLM alongside the system prompt and conversation history
 
@@ -26,13 +26,13 @@ Restructure internals so every feature built after this point works on all clien
 
 | Issue | Title | Why here? |
 |-------|-------|-----------|
-| [#11](https://github.com/z0rd0n88/BratBot/issues/11) | Unify commands across Discord and SMS clients | Eliminates duplicated logic; every later feature benefits from write-once commands |
+| [#11](https://github.com/z0rd0n88/BratBot/issues/11) | Unify commands across Discord clients | Eliminates duplicated logic; every later feature benefits from write-once commands |
 | [#13](https://github.com/z0rd0n88/BratBot/issues/13) | Spec Review: Race condition in cog pattern + Redis pipeline batching | Architectural review that must inform the unified design |
 | [#12](https://github.com/z0rd0n88/BratBot/issues/12) | Phase 2: Fix race condition in conversation memory + Redis pipeline for achievements | Move memory ops inside the serialized queue; batch Redis calls via pipelines |
 
 ### Key deliverables
 - Shared command handler module with per-client prefix mapping
-- Existing Discord and SMS commands migrated to shared system
+- Existing Discord commands migrated to shared system
 - Race condition fixed — all memory operations (fetch history, store turn, record stats) moved inside the queued `_call_llm()` coroutine
 - Redis pipeline batching for achievement checks (5+ round-trips → 1)
 
@@ -64,12 +64,12 @@ Lock down who can use the bot and ensure age-appropriate gating.
 | Issue | Title | Why here? |
 |-------|-------|-----------|
 | [#6](https://github.com/z0rd0n88/BratBot/issues/6) | Age verification gate (18+) | Adult-themed content requires verification before interaction |
-| [#10](https://github.com/z0rd0n88/BratBot/issues/10) | Allowlist-based access control | Restrict bot access to approved users/servers/phone numbers |
+| [#10](https://github.com/z0rd0n88/BratBot/issues/10) | Allowlist-based access control | Restrict bot access to approved users/servers |
 
 ### Key deliverables
 - One-time 18+ confirmation per user, stored in Redis, cross-client
 - Bot responds only with verification prompt until user confirms
-- Allowlist supporting Discord server IDs, Discord usernames, and phone numbers
+- Allowlist supporting Discord server IDs and Discord usernames
 - Admin commands to manage allowlist entries
 - Non-allowlisted users denied with a message
 
@@ -87,7 +87,7 @@ Broaden the bot's reach with new voices and new clients.
 ### Key deliverables
 - Bonnie personality profile generated from message history analysis (tone, vocabulary, phrases, mannerisms)
 - Bonnie selectable via `/settings bot bonnie`
-- Telegram bot client using `python-telegram-bot` or similar
+- Telegram bot client using `python-telegram-bot` or similar (future platform expansion)
 - Telegram integrated into Docker Compose and RunPod deployment
 - All existing features (preferences, age gate, allowlist, rate limiting) work on Telegram out of the box
 

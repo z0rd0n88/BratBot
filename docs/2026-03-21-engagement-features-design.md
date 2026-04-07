@@ -12,7 +12,7 @@ BratBot has under 100 Discord users. Before building monetization infrastructure
 
 ### What
 
-Add 3 new AI personalities: Mommy, Tsundere, Drill Sergeant. Each follows the established pattern: prompt file + model API endpoint + Discord command + SMS route.
+Add 3 new AI personalities: Mommy, Tsundere, Drill Sergeant. Each follows the established pattern: prompt file + model API endpoint + Discord command.
 
 ### Prerequisite Refactor
 
@@ -51,11 +51,11 @@ Each endpoint becomes ~5 lines: validate request, get system prompt, call helper
 
 ### New Personality Definitions
 
-| Personality | Command | Endpoint | Prompt File | SMS Prefix | Request Model |
-|---|---|---|---|---|---|
-| Mommy | `/mommychat` | `POST /mommychat` | `model/prompts/mommy.txt` | `mommy:` | `message` only (like CamiChatRequest) |
-| Tsundere | `/tsunderechat` | `POST /tsunderechat` | `model/prompts/tsundere.txt` | `tsundere:` | `message` only (like CamiChatRequest) |
-| Drill Sergeant | `/drillchat` | `POST /drillchat` | `model/prompts/drill_sergeant.txt` | `drill:` | `message` only (like CamiChatRequest) |
+| Personality | Command | Endpoint | Prompt File | Request Model |
+|---|---|---|---|---|
+| Mommy | `/mommychat` | `POST /mommychat` | `model/prompts/mommy.txt` | `message` only (like CamiChatRequest) |
+| Tsundere | `/tsunderechat` | `POST /tsunderechat` | `model/prompts/tsundere.txt` | `message` only (like CamiChatRequest) |
+| Drill Sergeant | `/drillchat` | `POST /drillchat` | `model/prompts/drill_sergeant.txt` | `message` only (like CamiChatRequest) |
 
 All new personalities use simple `message`-only request models (no `brat_level` parameter). Only BratBot has adjustable sass levels.
 
@@ -73,13 +73,11 @@ All new personalities use simple `message`-only request models (no `brat_level` 
 - `model/app.py` -- Refactor shared helper + add 3 new endpoints + request models
 - `src/bratbot/services/llm_client.py` -- Add `mommy_chat()`, `tsundere_chat()`, `drill_chat()` methods
 - `src/bratbot/commands/bratchat.py` -- No changes needed (existing pattern unchanged by refactor)
-- `sms/app.py` -- Update `_parse_route()` to support new prefixes. **Note:** SMS prefix matching uses `lower.startswith(prefix)` with a colon/space delimiter check -- existing code already requires the delimiter, so "drilled a hole" won't falsely match "drill:".
-
 ### Design Decision: Individual Commands vs. Personality Picker
 
-**Choice: Keep individual commands for Discord/SMS, but consider a parameterized model API endpoint.**
+**Choice: Keep individual commands for Discord, but consider a parameterized model API endpoint.**
 
-Discord layer: Individual commands (`/mommychat`, `/tsunderechat`, etc.) for discoverability and per-personality descriptions. SMS layer: Individual prefixes for consistency.
+Discord layer: Individual commands (`/mommychat`, `/tsunderechat`, etc.) for discoverability and per-personality descriptions.
 
 Model API layer: While individual endpoints are fine for 5 personalities, a future refactor to `POST /chat/{personality}` with a personality registry (dict mapping name to prompt path) would make adding personalities zero-code at the API layer. **Not doing this now** -- the shared `_generate_response()` helper already eliminates the duplication that matters. Revisit if personality count exceeds 8.
 
@@ -87,7 +85,6 @@ Model API layer: While individual endpoints are fine for 5 personalities, a futu
 
 - `test_model_api.py` -- New endpoints: request validation, error responses
 - `test_llm_client.py` -- New client methods: request/response format, timeout handling
-- `test_sms_gateway.py` -- New prefix routing: "mommy:", "tsundere:", "drill:" parse correctly
 
 ---
 
@@ -122,7 +119,6 @@ class ConversationMemory:
 - **Key format:** `conv:{personality}:{scope}:{user_id}`
   - Discord DMs: scope = `dm`
   - Discord guild channels: scope = `channel:{channel_id}`
-  - SMS: scope = `sms`
   - @mention handler: scope = `channel:{channel_id}`, personality = `brat` (mentions always use brat personality)
 - **Data structure:** Redis list. Each element is a JSON-serialized `{role, content}` dict.
 - **Operations per turn:**
@@ -191,17 +187,6 @@ Correct flow inside `_call_llm()`:
 
 **Cleanup:** Add `conversation_memory` and `stats_tracker` to `BratBot.close()` cleanup alongside existing `llm_client` and Redis cleanup.
 
-#### SMS Memory
-
-The SMS gateway (`sms/app.py`) is a separate FastAPI process, not a Python package. Since `sms/` and `src/bratbot/` cannot import from each other:
-
-**Decision: Duplicate `ConversationMemory` as `sms/conversation_memory.py`.** The class is small (~50 lines of Redis list operations). Duplication is acceptable here because:
-- The alternative (shared package) would require restructuring the project
-- The class is simple and unlikely to diverge
-- Both copies use the same Redis instance (same `REDIS_URL`), so conversation data is shared
-
-**Cross-platform identity note:** Discord identifies users by `user_id` (int) and SMS by phone number (string). These never collide in Redis keys, so a user interacting via both channels will have separate conversation histories and separate stats. This is acceptable -- merging identities would require a user account system, which is out of scope.
-
 #### `/clearhistory` Command
 
 New cog `src/bratbot/commands/clearhistory.py`:
@@ -215,9 +200,6 @@ In `src/bratbot/config/settings.py`:
 - `memory_window_size: int = 10`
 - `memory_ttl_seconds: int = 1800`
 - `enable_conversation_memory: bool = True` (feature flag for runtime disable)
-
-In `sms/settings.py`:
-- Same settings
 
 ### Basic Stats Tracking
 
@@ -266,8 +248,6 @@ New cog `src/bratbot/commands/stats.py`:
 - `src/bratbot/services/stats_tracker.py`
 - `src/bratbot/commands/clearhistory.py`
 - `src/bratbot/commands/stats.py`
-- `sms/conversation_memory.py` (duplicated from bratbot, ~50 lines)
-
 ### Files to Modify (Phase 2)
 
 - `model/app.py` -- Add `history` field to all request models + role validation
@@ -280,9 +260,6 @@ New cog `src/bratbot/commands/stats.py`:
 - `src/bratbot/events/messages.py` -- Same (for @mention handler, personality=`brat`)
 - `src/bratbot/bot.py` -- Initialize ConversationMemory and StatsTracker in setup_hook() + close()
 - `src/bratbot/config/settings.py` -- New memory settings + feature flag
-- `sms/app.py` -- Fetch/store memory, record stats
-- `sms/settings.py` -- New memory settings
-
 ### Tests (Phase 2)
 
 - `tests/test_conversation_memory.py` -- Window trimming, TTL, clear, graceful degradation, role validation
@@ -411,7 +388,7 @@ Add `appendonly yes` to Redis config. This ensures stats, achievements, and lead
 
 ### Phase 1 Verification
 1. Run `uv run pytest tests/ -v` -- all new and existing tests pass
-2. Run `uv run ruff check src/ model/ sms/` -- no lint errors
+2. Run `uv run ruff check src/ model/` -- no lint errors
 3. Start model API locally: `uvicorn model.app:app --port 8000`
 4. Test new endpoints: `curl -X POST localhost:8000/mommychat -H "Content-Type: application/json" -d '{"message": "test"}'`
 5. Start bot: `python -m bratbot` -- verify new commands appear in Discord
@@ -422,8 +399,7 @@ Add `appendonly yes` to Redis config. This ensures stats, achievements, and lead
 3. Send `/clearhistory` -- verify memory is cleared
 4. Wait 30+ minutes -- verify memory expires (TTL)
 5. Send `/stats` -- verify counts are accurate
-6. Test SMS memory: send multiple SMS, verify context is maintained
-7. Test graceful degradation: stop Redis, verify bot still responds (stateless)
+6. Test graceful degradation: stop Redis, verify bot still responds (stateless)
 8. Test feature flag: set `ENABLE_CONVERSATION_MEMORY=false`, verify stateless behavior
 9. Test history role validation: send crafted request with `role: "system"` in history, verify 400 rejection
 
@@ -445,7 +421,7 @@ No new Python packages required. All features use:
 - `httpx` (already a dependency)
 - `pydantic` (already a dependency)
 
-**Dockerfile.runpod note:** `model/requirements.txt` and `sms/requirements.txt` do not need updates since no new packages are added. The new `sms/conversation_memory.py` file uses only `redis` and `json` (both already available).
+**Dockerfile.runpod note:** `model/requirements.txt` does not need updates since no new packages are added.
 
 ---
 
@@ -457,4 +433,3 @@ No new Python packages required. All features use:
 - Custom user-created personas
 - Image reactions
 - Web dashboard
-- Cross-platform identity merging (Discord user ID <-> phone number)

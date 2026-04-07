@@ -9,9 +9,7 @@
 | `/bratchat` (3 brat levels) | Discord | Production | High -- brat_level is a natural tier axis |
 | `/camichat` (Cami personality) | Discord | Production | High -- premium personality |
 | @mention responses | Discord | Production | Medium -- usage-based gating |
-| SMS/RCS messaging | Twilio | Production | High -- per-message or subscription |
-| SMS personality routing ("cami:", "brat:") | Twilio | Production | Medium -- premium routing |
-| Per-user rate limiting (5s cooldown) | All | Production | High -- tier-based limits |
+| Per-user rate limiting (5s cooldown) | Discord | Production | High -- tier-based limits |
 | Per-channel rate limiting (10/min) | Discord | Production | High -- server-level tiers |
 | Request queue (5 depth) | Discord | Production | Medium -- priority queuing |
 | Self-hosted LLM (qwen3-14b) | Backend | Production | High -- model selection per tier |
@@ -22,7 +20,6 @@
 - **`brat_level` parameter (1-3)** is already wired end-to-end: Discord command -> Model API -> Ollama. Gating levels 2-3 behind a paywall requires minimal code changes.
 - **Rate limiter** is Redis-backed with configurable windows. Changing limits per-user based on tier is a natural extension.
 - **Multiple personalities** (BratBot, Cami) are separate endpoints. Adding new personalities = adding new prompt files + API endpoints + Discord commands.
-- **SMS gateway** runs independently on port 8001. SMS monetization can be layered on without touching Discord code.
 - **Request queue** already has max-depth and timeout controls. Priority queuing for paid users is architecturally straightforward.
 
 ---
@@ -34,7 +31,6 @@
 #### Free Tier
 - `/bratchat` at brat_level 1 only (helpful but mildly sassy)
 - 10 messages per hour (Discord)
-- No SMS access
 - No Cami personality
 - Standard queue priority
 - Community support only
@@ -43,14 +39,12 @@
 - `/bratchat` at all brat levels (1-3, including maximum brat)
 - 100 messages per hour (Discord)
 - `/camichat` access (Cami personality)
-- SMS access (50 messages/mo included)
 - Priority queue (skip ahead of free users)
 - Pro role in Discord server
 
 #### Ultra Tier -- $14.99/mo
 - Everything in Pro
 - Unlimited messages (Discord)
-- Unlimited SMS messages
 - Early access to new personalities
 - Custom brat_level tuning (choose your own sass level 1-10)
 - Dedicated queue (never wait)
@@ -78,21 +72,7 @@
 
 **Estimated revenue:** 500 active users x 5% conversion = 25 Pro subs = $125/mo. With 2% Ultra conversion = 10 Ultra subs = $150/mo. **Total: ~$275/mo** at modest adoption.
 
-### 2. SMS/RCS Subscriptions (Secondary)
-
-**How it works:** SMS access is Pro+ only. Free users get a teaser (one free SMS to try it, then paywall). Pro gets 50/mo, Ultra unlimited.
-
-**Why SMS is premium:**
-- Twilio costs ~$0.0079/segment to send. 50 messages/mo = ~$0.40/user cost. At $4.99/mo, strong margin.
-- SMS feels more personal/private than Discord. Users will pay for the intimacy.
-- RCS (rich messaging) is coming via Twilio -- future upsell opportunity.
-
-**Implementation leverage:**
-- SMS gateway already tracks per-phone rate limits via Redis
-- Add message counter per billing period, check against tier allowance
-- Twilio costs are variable -- SMS tier pricing must account for per-message cost
-
-### 3. Server Subscriptions (Growth)
+### 2. Server Subscriptions (Growth)
 
 **How it works:** Discord server admins pay for BratBot access in their server. Different from individual user subscriptions.
 
@@ -107,7 +87,7 @@
 - BratBot is unique -- no direct competitor with this personality niche
 - Per-channel rate limiting already exists, just needs per-server tier enforcement
 
-### 4. New Personalities (Feature Expansion)
+### 3. New Personalities (Feature Expansion)
 
 **Potential new personalities to develop:**
 
@@ -126,7 +106,7 @@
 
 **Revenue impact:** New personalities drive upgrades. Release one free personality to hook users, gate the rest behind Pro/Ultra. Seasonal or limited-time personalities create urgency.
 
-### 5. Merchandise (Passive)
+### 4. Merchandise (Passive)
 
 **Low-effort approach (start here):**
 - Redbubble/TeeSpring store with BratBot-themed designs
@@ -140,7 +120,7 @@
 - Sticker packs for Discord/iMessage
 - **Expected:** $500-2k/mo with active community engagement
 
-### 6. Tips/Donations (Supplementary)
+### 5. Tips/Donations (Supplementary)
 
 - Ko-fi or Buy Me a Coffee integration
 - `/tip` command in Discord
@@ -228,12 +208,11 @@
 |---|---|---|---|
 | Discord Pro | 500 active | 5% (25 subs) | $125 |
 | Discord Ultra | 500 active | 2% (10 subs) | $150 |
-| SMS Pro (included) | -- | -- | $0 (bundled) |
 | Server Pro | 3 servers | -- | $30 |
 | Merch | -- | -- | $75 |
 | Tips | -- | -- | $50 |
 | **Total** | | | **~$430/mo** |
-| **Costs** (RunPod + Twilio) | | | **-$175/mo** |
+| **Costs** (RunPod) | | | **-$150/mo** |
 | **Net** | | | **~$255/mo** |
 
 ### Optimistic (Growth Target)
@@ -244,11 +223,10 @@
 | Discord Ultra | 2,000 active | 3% (60 subs) | $900 |
 | Server Pro | 10 servers | -- | $100 |
 | Server Ultra | 3 servers | -- | $90 |
-| SMS add-on | 50 users | -- | $250 |
 | Merch | -- | -- | $200 |
 | Tips | -- | -- | $100 |
 | **Total** | | | **~$2,440/mo** |
-| **Costs** (RunPod + Twilio + Stripe fees) | | | **-$300/mo** |
+| **Costs** (RunPod + Stripe fees) | | | **-$250/mo** |
 | **Net** | | | **~$2,140/mo** |
 
 ---
@@ -261,7 +239,7 @@ Build features that make users stick and invite friends. Payment infrastructure 
 
 ### Phase 1: New Personalities (1-2 days)
 
-The fastest visible win. Follows the exact established pattern (prompt file + API endpoint + Discord command + SMS route). Zero architectural risk.
+The fastest visible win. Follows the exact established pattern (prompt file + API endpoint + Discord command). Zero architectural risk.
 
 **New characters:**
 | Personality | Vibe | Implementation |
@@ -277,7 +255,6 @@ The fastest visible win. Follows the exact established pattern (prompt file + AP
 - `model/app.py` — refactor + 3 new endpoints
 - `src/bratbot/services/llm_client.py` — 3 new client methods
 - `src/bratbot/commands/` — 3 new cog files (auto-discovered)
-- `sms/app.py` — update `_parse_route()` for new prefixes
 
 ### Phase 2: Conversation Memory + Basic Stats (3-5 days)
 
@@ -290,8 +267,6 @@ The highest-impact engagement feature. Transforms BratBot from a novelty into so
 - `model/app.py` gets optional `history` field on all endpoints (backwards-compatible)
 - Ollama already supports message arrays — no format changes needed
 - `/clearhistory` command for user control
-- SMS gateway gets memory support too
-
 **Basic Stats Tracking (piggybacks on memory work):**
 - New service: `src/bratbot/services/stats_tracker.py`
 - Redis sorted sets: `stats:total_messages`, `stats:personality:{name}`
@@ -326,8 +301,7 @@ Only build payment infrastructure when there's an audience to convert:
 4. Tier checking middleware (Redis-cached role lookup)
 5. Gate features behind Pro/Ultra roles
 6. Per-tier rate limit configuration
-7. SMS monetization (gate behind Pro tier)
-8. Merch store (Redbubble, `/merch` command)
+7. Merch store (Redbubble, `/merch` command)
 
 ---
 
@@ -336,7 +310,6 @@ Only build payment infrastructure when there's an audience to convert:
 | Risk | Mitigation |
 |---|---|
 | Users won't pay for a Discord bot | Free tier validates demand before building payment infra |
-| Twilio costs eat SMS margin | 50 msg/mo cap on Pro, monitor per-user cost |
 | GPU costs increase with usage | Queue depth limits prevent runaway inference |
 | Content moderation issues | Personalities are pre-defined prompts, not user-generated |
 | Stripe/payment complexity | LemonSqueezy as simpler alternative |
