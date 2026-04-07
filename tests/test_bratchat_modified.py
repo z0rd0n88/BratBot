@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from inspect import signature
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -26,6 +26,9 @@ class TestBratChatModified:
         mock_bot.intensity_store = AsyncMock()
         mock_bot.intensity_store.get_intensity = AsyncMock(return_value=2)
 
+        mock_bot.age_verification_store = AsyncMock()
+        mock_bot.age_verification_store.is_verified = AsyncMock(return_value=True)
+
         # Mock LLM client
         mock_bot.llm_client = AsyncMock()
         mock_bot.llm_client.chat = AsyncMock(return_value={
@@ -38,8 +41,7 @@ class TestBratChatModified:
         mock_interaction.user.id = 123456
         mock_interaction.guild_id = None
         mock_interaction.channel = None
-        mock_interaction.response.defer = AsyncMock()
-        mock_interaction.followup.send = AsyncMock()
+        mock_interaction.response.is_done = MagicMock(return_value=False)
 
         # Call without brat_level parameter
         await cog.bratchat.callback(cog, mock_interaction, message="hello")
@@ -62,6 +64,9 @@ class TestBratChatModified:
         # get_intensity now always returns an int (3 by default if not set)
         mock_bot.intensity_store.get_intensity = AsyncMock(return_value=3)
 
+        mock_bot.age_verification_store = AsyncMock()
+        mock_bot.age_verification_store.is_verified = AsyncMock(return_value=True)
+
         mock_bot.llm_client = AsyncMock()
         mock_bot.llm_client.chat = AsyncMock(return_value={
             "request_id": "test",
@@ -73,8 +78,7 @@ class TestBratChatModified:
         mock_interaction.user.id = 123456
         mock_interaction.guild_id = None
         mock_interaction.channel = None
-        mock_interaction.response.defer = AsyncMock()
-        mock_interaction.followup.send = AsyncMock()
+        mock_interaction.response.is_done = MagicMock(return_value=False)
 
         await cog.bratchat.callback(cog, mock_interaction, message="hello")
 
@@ -93,3 +97,20 @@ class TestBratChatModified:
 
         assert "brat_level" not in param_names
         assert "message" in param_names
+
+    async def test_bratchat_returns_early_when_unverified(self) -> None:
+        """bratchat returns without calling LLM when age gate returns False."""
+        from bratbot.commands.bratchat import BratCog
+
+        mock_bot = AsyncMock()
+        mock_bot.llm_client = AsyncMock()
+
+        cog = BratCog(mock_bot)
+        mock_interaction = AsyncMock()
+        mock_interaction.user.id = 123456
+
+        with patch("bratbot.commands.bratchat.check_age_verified", new_callable=AsyncMock) as mock_gate:
+            mock_gate.return_value = False
+            await cog.bratchat.callback(cog, mock_interaction, message="hello")
+
+        mock_bot.llm_client.chat.assert_not_called()

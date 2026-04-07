@@ -9,6 +9,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from bratbot.services.llm_client import LLMError
+from bratbot.utils.age_gate import _reply, check_age_verified
 from bratbot.utils.logger import get_logger
 
 if TYPE_CHECKING:
@@ -37,46 +38,60 @@ class BratCog(commands.Cog):
         interaction: discord.Interaction,
         message: str,
     ) -> None:
-        # Rate limit check
-        guild_id = interaction.guild_id or 0
-        if not await self.bot.rate_limiter.check_user(interaction.user.id, guild_id):
-            await interaction.response.send_message(RATE_LIMITED_REPLY, ephemeral=True)
-            return
-        if interaction.channel and not await self.bot.rate_limiter.check_channel(
-            interaction.channel.id,
-        ):
-            await interaction.response.send_message(RATE_LIMITED_REPLY, ephemeral=True)
-            return
+        async def _run(active_interaction: discord.Interaction) -> None:
+            guild_id = active_interaction.guild_id or 0
+            if not await self.bot.rate_limiter.check_user(
+                active_interaction.user.id, guild_id
+            ):
+                await _reply(active_interaction, RATE_LIMITED_REPLY, ephemeral=True)
+                return
+            if (
+                active_interaction.channel
+                and not await self.bot.rate_limiter.check_channel(
+                    active_interaction.channel.id,
+                )
+            ):
+                await _reply(active_interaction, RATE_LIMITED_REPLY, ephemeral=True)
+                return
 
-        # Defer — LLM may take longer than Discord's 3-second interaction timeout
-        await interaction.response.defer()
+            if not active_interaction.response.is_done():
+                await active_interaction.response.defer()
 
-        # Get user's preferred intensity (defaults to 3 if not set)
-        user_intensity = await self.bot.intensity_store.get_intensity(interaction.user.id)
-        user_verbosity = await self.bot.verbosity_store.get_verbosity(interaction.user.id)
-
-        log.info(
-            "bratchat_command",
-            guild_id=guild_id,
-            user_id=interaction.user.id,
-            user_intensity=user_intensity,
-            user_verbosity=user_verbosity,
-            message_length=len(message),
-        )
-
-        async def _call_llm() -> None:
-            response = await self.bot.llm_client.chat(
-                message, brat_level=user_intensity, verbosity=user_verbosity
+            user_intensity = await self.bot.intensity_store.get_intensity(
+                active_interaction.user.id
             )
-            await interaction.followup.send(response["reply"])
+            user_verbosity = await self.bot.verbosity_store.get_verbosity(
+                active_interaction.user.id
+            )
 
-        try:
-            if interaction.channel is not None:
-                await self.bot.request_queue.enqueue(interaction.channel, _call_llm())
-            else:
-                await _call_llm()
-        except (LLMError, KeyError):
-            await interaction.followup.send(LLM_ERROR_REPLY)
+            log.info(
+                "bratchat_command",
+                guild_id=guild_id,
+                user_id=active_interaction.user.id,
+                user_intensity=user_intensity,
+                user_verbosity=user_verbosity,
+                message_length=len(message),
+            )
+
+            async def _call_llm() -> None:
+                response = await self.bot.llm_client.chat(
+                    message, brat_level=user_intensity, verbosity=user_verbosity
+                )
+                await active_interaction.followup.send(response["reply"])
+
+            try:
+                if active_interaction.channel is not None:
+                    await self.bot.request_queue.enqueue(
+                        active_interaction.channel, _call_llm()
+                    )
+                else:
+                    await _call_llm()
+            except (LLMError, KeyError):
+                await active_interaction.followup.send(LLM_ERROR_REPLY)
+
+        if not await check_age_verified(interaction, self.bot, _run):
+            return
+        await _run(interaction)
 
 
 async def setup(bot: commands.Bot) -> None:
