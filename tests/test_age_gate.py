@@ -4,9 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import discord
-import pytest
-
 
 class TestCheckAgeVerified:
     async def test_verified_user_returns_true(self) -> None:
@@ -64,9 +61,7 @@ class TestReplyHelper:
 
         await _reply(mock_interaction, "test message", ephemeral=True)
 
-        mock_interaction.followup.send.assert_called_once_with(
-            "test message", ephemeral=True
-        )
+        mock_interaction.followup.send.assert_called_once_with("test message", ephemeral=True)
         mock_interaction.response.send_message.assert_not_called()
 
 

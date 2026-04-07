@@ -5,8 +5,6 @@ from __future__ import annotations
 from inspect import signature
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 
 class TestBratChatModified:
     """Test the modified /bratchat command without brat_level parameter."""
@@ -31,10 +29,9 @@ class TestBratChatModified:
 
         # Mock LLM client
         mock_bot.llm_client = AsyncMock()
-        mock_bot.llm_client.chat = AsyncMock(return_value={
-            "request_id": "test",
-            "reply": "response"
-        })
+        mock_bot.llm_client.chat = AsyncMock(
+            return_value={"request_id": "test", "reply": "response"}
+        )
 
         cog = BratCog(mock_bot)
         mock_interaction = AsyncMock()
@@ -68,10 +65,9 @@ class TestBratChatModified:
         mock_bot.age_verification_store.is_verified = AsyncMock(return_value=True)
 
         mock_bot.llm_client = AsyncMock()
-        mock_bot.llm_client.chat = AsyncMock(return_value={
-            "request_id": "test",
-            "reply": "response"
-        })
+        mock_bot.llm_client.chat = AsyncMock(
+            return_value={"request_id": "test", "reply": "response"}
+        )
 
         cog = BratCog(mock_bot)
         mock_interaction = AsyncMock()
@@ -93,7 +89,7 @@ class TestBratChatModified:
 
         # Check the command's parameters
         params = signature(BratCog.bratchat.callback).parameters
-        param_names = [p for p in params.keys() if p not in ("self", "interaction")]
+        param_names = [p for p in params if p not in ("self", "interaction")]
 
         assert "brat_level" not in param_names
         assert "message" in param_names
@@ -109,7 +105,9 @@ class TestBratChatModified:
         mock_interaction = AsyncMock()
         mock_interaction.user.id = 123456
 
-        with patch("bratbot.commands.bratchat.check_age_verified", new_callable=AsyncMock) as mock_gate:
+        with patch(
+            "bratbot.commands.bratchat.check_age_verified", new_callable=AsyncMock
+        ) as mock_gate:
             mock_gate.return_value = False
             await cog.bratchat.callback(cog, mock_interaction, message="hello")
 

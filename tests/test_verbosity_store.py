@@ -13,7 +13,9 @@ async def verbosity_store(redis_mock):
 
 
 class TestVerbosityStore:
-    async def test_get_verbosity_not_set_returns_default(self, verbosity_store: VerbosityStore) -> None:
+    async def test_get_verbosity_not_set_returns_default(
+        self, verbosity_store: VerbosityStore
+    ) -> None:
         """Getting verbosity for user with no setting returns default (2)."""
         result = await verbosity_store.get_verbosity(999999)
         assert result == 2
@@ -56,7 +58,9 @@ class TestVerbosityStore:
         assert await verbosity_store.get_verbosity(666666) == 1
         assert await verbosity_store.get_verbosity(777777) == 3
 
-    async def test_was_set_returns_false_when_not_set(self, verbosity_store: VerbosityStore) -> None:
+    async def test_was_set_returns_false_when_not_set(
+        self, verbosity_store: VerbosityStore
+    ) -> None:
         """was_set() returns False when user hasn't set verbosity."""
         assert await verbosity_store.was_set(888888) is False
 

@@ -25,12 +25,8 @@ class VerboseCog(commands.Cog):
 
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-    @app_commands.command(
-        name="verbose", description="Set or view your preferred response length"
-    )
-    @app_commands.describe(
-        verbosity="Response length (1-3): 1=short, 2=medium, 3=long"
-    )
+    @app_commands.command(name="verbose", description="Set or view your preferred response length")
+    @app_commands.describe(verbosity="Response length (1-3): 1=short, 2=medium, 3=long")
     async def verbose(
         self,
         interaction: discord.Interaction,
@@ -49,9 +45,7 @@ class VerboseCog(commands.Cog):
                 )
             else:
                 was_explicitly_set = await self.bot.verbosity_store.was_set(user_id)
-                log.info(
-                    "verbosity_get", user_id=user_id, was_set=was_explicitly_set
-                )
+                log.info("verbosity_get", user_id=user_id, was_set=was_explicitly_set)
                 if was_explicitly_set:
                     current = await self.bot.verbosity_store.get_verbosity(user_id)
                     await _reply(

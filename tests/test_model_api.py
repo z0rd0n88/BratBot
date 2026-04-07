@@ -1,11 +1,11 @@
 """Tests for the model API — ChatRequest validation and /bratchat endpoint."""
 
 import pytest
+from pydantic import ValidationError
+from starlette.testclient import TestClient
 
 # conftest.py sets DISCORD_PUBLIC_KEY and adds model/ to sys.path before collection
 from app import ChatRequest, app
-from pydantic import ValidationError
-from starlette.testclient import TestClient
 
 
 @pytest.fixture
@@ -22,14 +22,14 @@ class TestChatRequestMessageValidation:
     @pytest.mark.parametrize(
         "message",
         [
-            "what's up",                        # apostrophe
-            'say "hello" to me',                # double quotes
-            "back\\slash",                      # backslash
-            "line1\nline2",                     # newline
-            "tab\there",                        # tab
-            "100% done & dusted",               # percent + ampersand
-            "<script>alert('xss')</script>",    # angle brackets
-            "emoji 🎉 and kanji こんにちは",    # mixed unicode
+            "what's up",  # apostrophe
+            'say "hello" to me',  # double quotes
+            "back\\slash",  # backslash
+            "line1\nline2",  # newline
+            "tab\there",  # tab
+            "100% done & dusted",  # percent + ampersand
+            "<script>alert('xss')</script>",  # angle brackets
+            "emoji 🎉 and kanji こんにちは",  # mixed unicode
         ],
     )
     def test_accepts_special_characters(self, message):
@@ -92,12 +92,12 @@ class TestBratchatRequestValidation:
     @pytest.mark.parametrize(
         "message",
         [
-            "what's up",                        # apostrophe
-            'say "hello" to me',                # double quotes
-            "back\\slash",                      # backslash
-            "line1\nline2",                     # newline
-            "<script>alert('xss')</script>",    # angle brackets
-            "emoji 🎉 こんにちは",              # unicode
+            "what's up",  # apostrophe
+            'say "hello" to me',  # double quotes
+            "back\\slash",  # backslash
+            "line1\nline2",  # newline
+            "<script>alert('xss')</script>",  # angle brackets
+            "emoji 🎉 こんにちは",  # unicode
         ],
     )
     def test_accepts_special_characters_in_request(self, client, message):

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
 from collections.abc import Callable, Coroutine
+from typing import TYPE_CHECKING, Any
 
 import discord
 
@@ -18,9 +18,7 @@ DISCLAIMER_TEMPLATE = (
 )
 
 
-async def _reply(
-    interaction: discord.Interaction, content: str, ephemeral: bool = False
-) -> None:
+async def _reply(interaction: discord.Interaction, content: str, ephemeral: bool = False) -> None:
     """Send a response, choosing followup or send_message based on interaction state."""
     if interaction.response.is_done():
         await interaction.followup.send(content, ephemeral=ephemeral)
@@ -78,9 +76,7 @@ class VerificationView(discord.ui.View):
         self.stop()
         await button_interaction.response.defer(ephemeral=True)
         await self.bot.age_verification_store.set_verified(button_interaction.user.id)
-        await button_interaction.followup.send(
-            "\u2705 Verified! Let me get that for you..."
-        )
+        await button_interaction.followup.send("\u2705 Verified! Let me get that for you...")
         await self.callback_fn(button_interaction)
 
     async def on_timeout(self) -> None:

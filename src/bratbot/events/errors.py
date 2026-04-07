@@ -28,9 +28,7 @@ class ErrorHandlerCog(commands.Cog):
         self.bot.tree.on_error = self.on_app_command_error
 
     @commands.Cog.listener()
-    async def on_command_error(
-        self, ctx: commands.Context, error: commands.CommandError
-    ) -> None:
+    async def on_command_error(self, ctx: commands.Context, error: commands.CommandError) -> None:
         """Handle errors from prefix commands."""
         self._log_error(
             ctx.guild,
@@ -144,9 +142,7 @@ class ErrorHandlerCog(commands.Cog):
         )
 
     @staticmethod
-    async def _send_error_response(
-        interaction: discord.Interaction, message: str
-    ) -> None:
+    async def _send_error_response(interaction: discord.Interaction, message: str) -> None:
         """Send an error response, handling both responded and deferred states."""
         try:
             if interaction.response.is_done():

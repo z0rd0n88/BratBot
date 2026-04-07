@@ -40,16 +40,11 @@ class BratCog(commands.Cog):
     ) -> None:
         async def _run(active_interaction: discord.Interaction) -> None:
             guild_id = active_interaction.guild_id or 0
-            if not await self.bot.rate_limiter.check_user(
-                active_interaction.user.id, guild_id
-            ):
+            if not await self.bot.rate_limiter.check_user(active_interaction.user.id, guild_id):
                 await _reply(active_interaction, RATE_LIMITED_REPLY, ephemeral=True)
                 return
-            if (
-                active_interaction.channel
-                and not await self.bot.rate_limiter.check_channel(
-                    active_interaction.channel.id,
-                )
+            if active_interaction.channel and not await self.bot.rate_limiter.check_channel(
+                active_interaction.channel.id,
             ):
                 await _reply(active_interaction, RATE_LIMITED_REPLY, ephemeral=True)
                 return
@@ -81,9 +76,7 @@ class BratCog(commands.Cog):
 
             try:
                 if active_interaction.channel is not None:
-                    await self.bot.request_queue.enqueue(
-                        active_interaction.channel, _call_llm()
-                    )
+                    await self.bot.request_queue.enqueue(active_interaction.channel, _call_llm())
                 else:
                     await _call_llm()
             except (LLMError, KeyError):

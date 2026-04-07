@@ -40,6 +40,7 @@ def llm_client() -> LLMClient:
 @pytest.fixture
 async def redis_mock():
     """Mock Redis client for testing — in-memory storage."""
+
     class MockRedis:
         def __init__(self):
             self._store: dict = {}

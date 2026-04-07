@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 
 class TestVerboseCommand:
     async def test_verbose_set_calls_store(self) -> None:
@@ -81,7 +79,9 @@ class TestVerboseCommand:
         mock_interaction = AsyncMock()
         mock_interaction.user.id = 123456
 
-        with patch("bratbot.commands.verbose.check_age_verified", new_callable=AsyncMock) as mock_gate:
+        with patch(
+            "bratbot.commands.verbose.check_age_verified", new_callable=AsyncMock
+        ) as mock_gate:
             mock_gate.return_value = False
             await cog.verbose.callback(cog, mock_interaction, verbosity=2)
 

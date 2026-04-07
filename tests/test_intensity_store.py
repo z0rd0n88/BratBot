@@ -56,13 +56,17 @@ class TestIntensityStore:
         stored = await intensity_store.get_intensity(user_id)
         assert stored == 3
 
-    async def test_set_intensity_invalid_level_too_low(self, intensity_store: IntensityStore) -> None:
+    async def test_set_intensity_invalid_level_too_low(
+        self, intensity_store: IntensityStore
+    ) -> None:
         """Setting level 0 raises ValueError."""
         user_id = 444444
         with pytest.raises(ValueError, match="intensity must be between 1 and 3"):
             await intensity_store.set_intensity(user_id, 0)
 
-    async def test_set_intensity_invalid_level_too_high(self, intensity_store: IntensityStore) -> None:
+    async def test_set_intensity_invalid_level_too_high(
+        self, intensity_store: IntensityStore
+    ) -> None:
         """Setting level 4 raises ValueError."""
         user_id = 555555
         with pytest.raises(ValueError, match="intensity must be between 1 and 3"):
@@ -76,7 +80,9 @@ class TestIntensityStore:
         assert await intensity_store.get_intensity(666666) == 1
         assert await intensity_store.get_intensity(777777) == 3
 
-    async def test_was_set_returns_false_when_not_set(self, intensity_store: IntensityStore) -> None:
+    async def test_was_set_returns_false_when_not_set(
+        self, intensity_store: IntensityStore
+    ) -> None:
         """was_set() returns False when user hasn't set intensity."""
         user_id = 888888
         result = await intensity_store.was_set(user_id)

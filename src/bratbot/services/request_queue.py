@@ -65,9 +65,7 @@ class RequestQueue:
 
         # Ensure a worker exists for this channel
         if channel_id not in self._workers or self._workers[channel_id].done():
-            self._workers[channel_id] = asyncio.create_task(
-                self._process_queue(channel_id)
-            )
+            self._workers[channel_id] = asyncio.create_task(self._process_queue(channel_id))
 
         # Wait for our specific request to complete
         try:

@@ -221,14 +221,14 @@ class TestChatMessageEdgeCases:
     @pytest.mark.parametrize(
         "special_message",
         [
-            "what's up",                        # apostrophe
-            'say "hello" to me',                # double quotes
-            "back\\slash",                      # backslash
-            "line1\nline2",                     # newline
-            "tab\there",                        # tab
-            "100% done & dusted",               # percent + ampersand
-            "<script>alert('xss')</script>",    # angle brackets
-            "emoji 🎉 and kanji こんにちは",    # mixed unicode
+            "what's up",  # apostrophe
+            'say "hello" to me',  # double quotes
+            "back\\slash",  # backslash
+            "line1\nline2",  # newline
+            "tab\there",  # tab
+            "100% done & dusted",  # percent + ampersand
+            "<script>alert('xss')</script>",  # angle brackets
+            "emoji 🎉 and kanji こんにちは",  # mixed unicode
         ],
     )
     async def test_chat_special_characters_pass_through(
@@ -371,14 +371,14 @@ class TestCamiChatHappyPath:
     @pytest.mark.parametrize(
         "special_message",
         [
-            "what's up",                        # apostrophe
-            'say "hello" to me',                # double quotes
-            "back\\slash",                      # backslash
-            "line1\nline2",                     # newline
-            "tab\there",                        # tab
-            "100% done & dusted",               # percent + ampersand
-            "<script>alert('xss')</script>",    # angle brackets
-            "emoji 🎉 and kanji こんにちは",    # mixed unicode
+            "what's up",  # apostrophe
+            'say "hello" to me',  # double quotes
+            "back\\slash",  # backslash
+            "line1\nline2",  # newline
+            "tab\there",  # tab
+            "100% done & dusted",  # percent + ampersand
+            "<script>alert('xss')</script>",  # angle brackets
+            "emoji 🎉 and kanji こんにちは",  # mixed unicode
         ],
     )
     async def test_cami_chat_special_characters_pass_through(

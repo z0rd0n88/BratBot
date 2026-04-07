@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 
 class TestAgeVerificationStore:
     async def test_is_verified_returns_false_when_not_set(self, redis_mock) -> None:

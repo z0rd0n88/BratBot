@@ -25,12 +25,8 @@ class IntensityCog(commands.Cog):
 
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-    @app_commands.command(
-        name="intensity", description="Set or view your preferred brat intensity"
-    )
-    @app_commands.describe(
-        intensity="Brat intensity level (1-3): 1=mild, 2=medium, 3=maximum"
-    )
+    @app_commands.command(name="intensity", description="Set or view your preferred brat intensity")
+    @app_commands.describe(intensity="Brat intensity level (1-3): 1=mild, 2=medium, 3=maximum")
     async def intensity(
         self,
         interaction: discord.Interaction,
@@ -49,9 +45,7 @@ class IntensityCog(commands.Cog):
                 )
             else:
                 was_explicitly_set = await self.bot.intensity_store.was_set(user_id)
-                log.info(
-                    "intensity_get", user_id=user_id, was_set=was_explicitly_set
-                )
+                log.info("intensity_get", user_id=user_id, was_set=was_explicitly_set)
                 if was_explicitly_set:
                     current = await self.bot.intensity_store.get_intensity(user_id)
                     await _reply(

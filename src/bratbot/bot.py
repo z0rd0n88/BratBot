@@ -9,12 +9,12 @@ import discord
 from discord.ext import commands
 
 from bratbot.config import settings
-from bratbot.services.intensity_store import IntensityStore
-from bratbot.services.verbosity_store import VerbosityStore
 from bratbot.services.age_verification_store import AgeVerificationStore
+from bratbot.services.intensity_store import IntensityStore
 from bratbot.services.llm_client import LLMClient
 from bratbot.services.rate_limiter import RateLimiter
 from bratbot.services.request_queue import RequestQueue
+from bratbot.services.verbosity_store import VerbosityStore
 from bratbot.utils.logger import get_logger
 from bratbot.utils.redis import close_redis, get_redis
 

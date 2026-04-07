@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
-
 
 class TestBratchatPassesVerbosity:
     async def test_bratchat_fetches_user_verbosity(self) -> None:
