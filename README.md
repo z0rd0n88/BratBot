@@ -57,7 +57,7 @@ Each bot has its own personality endpoint (`/bratchat`, `/bonniebot`) with isola
 
 - **Multi-Personality Monorepo** — Multiple Discord bots sharing one codebase. Bug fixes apply to all bots automatically.
 - **Self-Hosted LLM** — Runs on your own hardware via Ollama. No API keys, no usage fees, full control.
-- **Slash Commands** — `/bratchat` (BratBot), `/bonniebot` (BonnieBot), plus shared commands (`/ping`, `/intensity`, `/verbose`).
+- **Slash Commands** — `/bratchat`, `/camichat` (BratBot), `/bonniebot` (BonnieBot), plus shared commands (`/ping`, `/intensity`, `/verbose`, `/help`).
 - **@Mention Support** — Mention either bot in any channel for free-form conversation.
 - **Adjustable Intensity** — Per-user intensity levels (1–3) via the `/intensity` command.
 - **Adjustable Verbosity** — Per-user response length (1–3) via the `/verbose` command.
@@ -174,6 +174,7 @@ docker compose up --build
 - Both bots should appear online in your Discord server.
 - Run `/ping` on either bot — responds with "Pong" and WebSocket latency.
 - Run `/bratchat How do loops work?` — BratBot responds with a bratty explanation.
+- Run `/camichat What's a closure?` — Cami responds with her own personality.
 - Run `/bonniebot Hello!` — BonnieBot responds with its own personality.
 - @mention either bot — responds via the LLM pipeline.
 
@@ -437,8 +438,10 @@ BratBot/
       commands/               # BratBot-specific slash commands
         ping.py               # /ping
         bratchat.py           # /bratchat (LLM query)
+        cami.py               # /camichat (Cami personality, LLM query)
         intensity.py          # /intensity (1-3 attitude level)
         verbose.py            # /verbose (1-3 response length)
+        help.py               # /help (list available commands)
       events/                 # Shared event handlers (used by all bots)
         ready.py              # on_ready listener
         guild.py              # Guild join/remove logging
@@ -464,6 +467,7 @@ BratBot/
         ping.py               # /ping
         intensity.py          # /intensity
         verbose.py            # /verbose
+        help.py               # /help (list available commands)
   tests/
     conftest.py               # Shared fixtures
     test_llm_client.py        # LLM client tests
