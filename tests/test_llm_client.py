@@ -218,6 +218,34 @@ class TestChatMessageEdgeCases:
 
         assert captured["body"]["message"] == unicode_msg
 
+    @pytest.mark.parametrize(
+        "special_message",
+        [
+            "what's up",                        # apostrophe
+            'say "hello" to me',                # double quotes
+            "back\\slash",                      # backslash
+            "line1\nline2",                     # newline
+            "tab\there",                        # tab
+            "100% done & dusted",               # percent + ampersand
+            "<script>alert('xss')</script>",    # angle brackets
+            "emoji 🎉 and kanji こんにちは",    # mixed unicode
+        ],
+    )
+    async def test_chat_special_characters_pass_through(
+        self, llm_client: LLMClient, special_message: str
+    ) -> None:
+        """Special characters must be JSON-encoded correctly and round-trip intact."""
+        captured: dict = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["body"] = json.loads(request.content)
+            return httpx.Response(200, json=CHAT_RESPONSE)
+
+        _inject_transport(llm_client, handler)
+        await llm_client.chat(special_message)
+
+        assert captured["body"]["message"] == special_message
+
 
 # ---------------------------------------------------------------------------
 # POST /bratchat — error responses
@@ -339,6 +367,34 @@ class TestCamiChatHappyPath:
         await llm_client.cami_chat("x" * 3000)
 
         assert len(captured["body"]["message"]) == 2000
+
+    @pytest.mark.parametrize(
+        "special_message",
+        [
+            "what's up",                        # apostrophe
+            'say "hello" to me',                # double quotes
+            "back\\slash",                      # backslash
+            "line1\nline2",                     # newline
+            "tab\there",                        # tab
+            "100% done & dusted",               # percent + ampersand
+            "<script>alert('xss')</script>",    # angle brackets
+            "emoji 🎉 and kanji こんにちは",    # mixed unicode
+        ],
+    )
+    async def test_cami_chat_special_characters_pass_through(
+        self, llm_client: LLMClient, special_message: str
+    ) -> None:
+        """Special characters must be JSON-encoded correctly and round-trip intact."""
+        captured: dict = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["body"] = json.loads(request.content)
+            return httpx.Response(200, json=CAMI_CHAT_RESPONSE)
+
+        _inject_transport(llm_client, handler)
+        await llm_client.cami_chat(special_message)
+
+        assert captured["body"]["message"] == special_message
 
 
 # ---------------------------------------------------------------------------
