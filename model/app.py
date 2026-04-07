@@ -91,6 +91,11 @@ class CamiChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
 
 
+class BonnieChatRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=2000)
+    level: int = Field(default=3, ge=1, le=3)
+
+
 # ---------------------------------------------------------------------------
 # Personality prompts
 # ---------------------------------------------------------------------------
@@ -126,6 +131,14 @@ def get_cami_system_prompt() -> str:
     path = PROMPT_DIR / "cami.txt"
     if not path.exists():
         raise RuntimeError("Cami prompt file not found: model/prompts/cami.txt")
+    return path.read_text(encoding="utf-8").strip()
+
+
+def get_bonnie_system_prompt() -> str:
+    """Return the system prompt for Bonnie's personality, loaded from file."""
+    path = PROMPT_DIR / "bonnie.txt"
+    if not path.exists():
+        raise RuntimeError("Bonnie prompt file not found: model/prompts/bonnie.txt")
     return path.read_text(encoding="utf-8").strip()
 
 
@@ -203,7 +216,10 @@ async def bratchat(request: ChatRequest):
             raise HTTPException(status_code=503, detail=f"Ollama not reachable: {e}") from None
 
         if resp.status_code != 200:
-            logger.error("[%s] Ollama returned status %d: %s", request_id, resp.status_code, resp.text)
+            logger.error(
+                "[%s] Ollama returned status %d: %s",
+                request_id, resp.status_code, resp.text,
+            )
             raise HTTPException(status_code=500, detail="Inference error")
 
         data = resp.json()
@@ -273,7 +289,10 @@ async def camichat(request: CamiChatRequest):
             raise HTTPException(status_code=503, detail=f"Ollama not reachable: {e}") from None
 
         if resp.status_code != 200:
-            logger.error("[%s] Ollama returned status %d: %s", request_id, resp.status_code, resp.text)
+            logger.error(
+                "[%s] Ollama returned status %d: %s",
+                request_id, resp.status_code, resp.text,
+            )
             raise HTTPException(status_code=500, detail="Inference error")
 
         data = resp.json()
@@ -295,5 +314,79 @@ async def camichat(request: CamiChatRequest):
 
     return {
         "request_id": request_id,
+        "reply": reply,
+    }
+
+
+@app.post("/bonniebot")
+async def bonniebot(request: BonnieChatRequest):
+    """Send a message to the LLM via Ollama and return Bonnie's response."""
+    if _http_client is None:
+        raise HTTPException(status_code=503, detail="HTTP client not initialized")
+
+    request_id = uuid.uuid4().hex[:8]
+    logger.info(
+        "[%s] bonniebot level=%d message_len=%d",
+        request_id,
+        request.level,
+        len(request.message),
+    )
+
+    system_prompt = get_bonnie_system_prompt()
+    ollama_payload = {
+        "model": OLLAMA_MODEL,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": request.message + _DISCORD_LENGTH_INSTRUCTION},
+        ],
+        "stream": False,
+        "options": {
+            "temperature": OLLAMA_TEMPERATURE,
+            "num_predict": OLLAMA_NUM_PREDICT,
+            "num_ctx": OLLAMA_NUM_CTX,
+        },
+    }
+
+    reply = "[Model returned empty content]"
+    for attempt in range(_MAX_REPLY_RETRIES + 1):
+        try:
+            start = time.perf_counter()
+            resp = await _http_client.post("/api/chat", json=ollama_payload)
+            elapsed = time.perf_counter() - start
+            logger.info("[%s] bonniebot inference completed in %.2f seconds", request_id, elapsed)
+        except httpx.TimeoutException:
+            logger.error("[%s] Ollama request timed out", request_id)
+            raise HTTPException(status_code=504, detail="LLM inference timed out") from None
+        except httpx.HTTPError as e:
+            logger.error("[%s] Ollama request failed: %s", request_id, e)
+            raise HTTPException(status_code=503, detail=f"Ollama not reachable: {e}") from None
+
+        if resp.status_code != 200:
+            logger.error(
+                "[%s] Ollama returned status %d: %s",
+                request_id, resp.status_code, resp.text,
+            )
+            raise HTTPException(status_code=500, detail="Inference error")
+
+        data = resp.json()
+        reply = data.get("message", {}).get("content", "[Model returned empty content]")
+
+        if len(reply) <= DISCORD_MAX_LENGTH:
+            break
+        if attempt < _MAX_REPLY_RETRIES:
+            logger.warning(
+                "[%s] bonniebot reply too long (%d chars), retrying (attempt %d/%d)",
+                request_id, len(reply), attempt + 1, _MAX_REPLY_RETRIES + 1,
+            )
+        else:
+            logger.error(
+                "[%s] bonniebot reply still too long (%d chars) after %d retries, truncating",
+                request_id, len(reply), _MAX_REPLY_RETRIES,
+            )
+            reply = reply[:DISCORD_MAX_LENGTH]
+
+    return {
+        "request_id": request_id,
+        "level": request.level,
         "reply": reply,
     }

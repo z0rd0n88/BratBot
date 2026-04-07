@@ -8,9 +8,9 @@ import traceback
 import discord
 from discord.ext import commands
 
-from bratbot.config import settings
-from bratbot.personality import BRAT_PERSONALITY, Personality
-from bratbot.services.age_verification_store import AgeVerificationStore
+from bonniebot.config import settings
+from bonniebot.personality import BONNIE_PERSONALITY
+from bratbot.personality import Personality
 from bratbot.services.intensity_store import IntensityStore
 from bratbot.services.llm_client import LLMClient
 from bratbot.services.rate_limiter import RateLimiter
@@ -21,18 +21,17 @@ from bratbot.utils.redis import close_redis, get_redis
 
 log = get_logger(__name__)
 
-# Packages to auto-discover cog modules from
-_COG_PACKAGES = ("bratbot.commands", "bratbot.events")
+# Shared events from bratbot + BonnieBot's own commands
+_COG_PACKAGES = ("bratbot.events", "bonniebot.commands")
 
 
-class BratBot(commands.Bot):
+class BonnieBot(commands.Bot):
     personality: Personality
     llm_client: LLMClient
     request_queue: RequestQueue
     rate_limiter: RateLimiter
     intensity_store: IntensityStore
     verbosity_store: VerbosityStore
-    age_verification_store: AgeVerificationStore
 
     def __init__(self) -> None:
         intents = discord.Intents.default()
@@ -45,7 +44,7 @@ class BratBot(commands.Bot):
 
     async def setup_hook(self) -> None:
         # Attach personality
-        self.personality = BRAT_PERSONALITY
+        self.personality = BONNIE_PERSONALITY
 
         # Initialize Redis
         redis = await get_redis(settings.redis_url)
@@ -69,12 +68,11 @@ class BratBot(commands.Bot):
         self.rate_limiter = RateLimiter(redis)
         self.intensity_store = IntensityStore(redis)
         self.verbosity_store = VerbosityStore(redis)
-        self.age_verification_store = AgeVerificationStore(redis)
 
         # Auto-discover and load all extensions
         await self._load_extensions()
 
-        # Sync slash commands — guild-specific for dev, global for production
+        # Sync slash commands
         if settings.guild_id:
             guild = discord.Object(id=settings.guild_id)
             self.tree.copy_global_to(guild=guild)
@@ -88,7 +86,7 @@ class BratBot(commands.Bot):
         self._register_exception_handlers()
 
     async def _load_extensions(self) -> None:
-        """Auto-discover and load all cog modules from commands/ and events/."""
+        """Auto-discover and load all cog modules from events/ and commands/."""
         failed: list[str] = []
         for package_name in _COG_PACKAGES:
             pkg = __import__(package_name, fromlist=[""])

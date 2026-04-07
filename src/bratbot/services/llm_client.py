@@ -40,13 +40,27 @@ class LLMValidationError(LLMError):
 
 
 class LLMClient:
-    """Wraps the LLM server's ``/health``, ``/bratchat``, and ``/camichat`` endpoints."""
+    """Wraps the LLM server's ``/health``, chat, and ``/camichat`` endpoints.
 
-    def __init__(self, base_url: str, default_brat_level: int, timeout: float) -> None:
+    Args:
+        base_url: Base URL of the model server.
+        chat_endpoint: Path called by :meth:`chat` (e.g. ``"/bratchat"`` or ``"/bonniebot"``).
+        default_brat_level: Default intensity level when none is supplied.
+        timeout: Request timeout in seconds.
+    """
+
+    def __init__(
+        self,
+        base_url: str,
+        chat_endpoint: str,
+        default_brat_level: int,
+        timeout: float,
+    ) -> None:
         self._client = httpx.AsyncClient(
             base_url=base_url,
             timeout=httpx.Timeout(timeout, connect=5.0),
         )
+        self._chat_endpoint = chat_endpoint
         self._default_brat_level = default_brat_level
 
     async def health_check(self) -> bool:
@@ -60,8 +74,10 @@ class LLMClient:
     async def chat(self, message: str, brat_level: int | None = None, verbosity: int = 2) -> dict:
         """Send a message and return the server's response dict.
 
+        Posts to the ``chat_endpoint`` supplied at construction time.
+
         Returns:
-            ``{"request_id": ..., "brat_level": ..., "reply": ...}``
+            ``{"request_id": ..., "reply": ...}``
 
         Raises:
             LLMConnectionError: Server unreachable.
@@ -76,7 +92,7 @@ class LLMClient:
         }
 
         try:
-            resp = await self._client.post("/bratchat", json=payload)
+            resp = await self._client.post(self._chat_endpoint, json=payload)
         except httpx.ConnectError as exc:
             raise LLMConnectionError("LLM server unreachable") from exc
         except httpx.TimeoutException as exc:
