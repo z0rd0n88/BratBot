@@ -316,12 +316,8 @@ cmd_hot_update() {
     info "  → Syncing model/ ..."
     pod_scp "${PROJECT_DIR}/model/" "/model/"
 
-    info "  → Syncing sms/ ..."
-    pod_scp "${PROJECT_DIR}/sms/app.py" "/sms/app.py"
-    pod_scp "${PROJECT_DIR}/sms/settings.py" "/sms/settings.py"
-
-    info "Restarting model, bot, sms (ollama stays up)..."
-    pod_ssh "supervisorctl restart model bot sms"
+    info "Restarting model, bot (ollama stays up)..."
+    pod_ssh "supervisorctl restart model bot"
 
     ok "Hot-update complete. Model stayed loaded in VRAM."
     echo ""
