@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -19,12 +19,15 @@ class TestBratchatPassesVerbosity:
         mock_bot.verbosity_store.get_verbosity = AsyncMock(return_value=2)
         mock_bot.llm_client.chat = AsyncMock(return_value={"request_id": "x", "reply": "hi"})
         mock_bot.request_queue = AsyncMock()
+        mock_bot.age_verification_store = AsyncMock()
+        mock_bot.age_verification_store.is_verified = AsyncMock(return_value=True)
 
         cog = BratCog(mock_bot)
         interaction = AsyncMock()
         interaction.user.id = 123456
         interaction.guild_id = None
         interaction.channel = None
+        interaction.response.is_done = MagicMock(return_value=False)
 
         await cog.bratchat.callback(cog, interaction, message="hello")
 
@@ -41,12 +44,15 @@ class TestBratchatPassesVerbosity:
         mock_bot.verbosity_store.get_verbosity = AsyncMock(return_value=1)
         mock_bot.llm_client.chat = AsyncMock(return_value={"request_id": "x", "reply": "hi"})
         mock_bot.request_queue = AsyncMock()
+        mock_bot.age_verification_store = AsyncMock()
+        mock_bot.age_verification_store.is_verified = AsyncMock(return_value=True)
 
         cog = BratCog(mock_bot)
         interaction = AsyncMock()
         interaction.user.id = 123456
         interaction.guild_id = None
         interaction.channel = None
+        interaction.response.is_done = MagicMock(return_value=False)
 
         await cog.bratchat.callback(cog, interaction, message="hello")
 
@@ -65,12 +71,15 @@ class TestCamichatPassesVerbosity:
         mock_bot.verbosity_store.get_verbosity = AsyncMock(return_value=2)
         mock_bot.llm_client.cami_chat = AsyncMock(return_value={"request_id": "x", "reply": "hi"})
         mock_bot.request_queue = AsyncMock()
+        mock_bot.age_verification_store = AsyncMock()
+        mock_bot.age_verification_store.is_verified = AsyncMock(return_value=True)
 
         cog = CamiCog(mock_bot)
         interaction = AsyncMock()
         interaction.user.id = 123456
         interaction.guild_id = None
         interaction.channel = None
+        interaction.response.is_done = MagicMock(return_value=False)
 
         await cog.camichat.callback(cog, interaction, message="hello")
 
@@ -86,12 +95,15 @@ class TestCamichatPassesVerbosity:
         mock_bot.verbosity_store.get_verbosity = AsyncMock(return_value=3)
         mock_bot.llm_client.cami_chat = AsyncMock(return_value={"request_id": "x", "reply": "hi"})
         mock_bot.request_queue = AsyncMock()
+        mock_bot.age_verification_store = AsyncMock()
+        mock_bot.age_verification_store.is_verified = AsyncMock(return_value=True)
 
         cog = CamiCog(mock_bot)
         interaction = AsyncMock()
         interaction.user.id = 123456
         interaction.guild_id = None
         interaction.channel = None
+        interaction.response.is_done = MagicMock(return_value=False)
 
         await cog.camichat.callback(cog, interaction, message="hello")
 
