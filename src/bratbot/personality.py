@@ -37,6 +37,21 @@ class Personality:
     llm_validation_error: str
     llm_generic_error: str
 
+    # --- help.py strings ---
+    help_text: str
+    """Full formatted help message sent in response to /help."""
+
+
+_BRAT_HELP = """\
+**BratBot Commands** \N{EM DASH} since you clearly couldn't figure it out yourself.
+
+`/bratchat <message>` \N{EM DASH} send me a message and I'll respond. Try to make it interesting.
+`/camichat <message>` \N{EM DASH} chat with Cami instead. She's more patient than I am.
+`/intensity [1-3]` \N{EM DASH} set brat intensity (1=mild, 2=medium, 3=max). Omit to view current.
+`/verbose [1-3]` \N{EM DASH} set response length (1=short, 2=medium, 3=long). Omit to view current.
+`/ping` \N{EM DASH} check that I'm alive. I am.\
+"""
+
 
 BRAT_PERSONALITY = Personality(
     name="BratBot",
@@ -56,4 +71,6 @@ BRAT_PERSONALITY = Personality(
     llm_server_error="My brain had a hiccup. Try again.",
     llm_validation_error="That doesn't make sense. Even for you.",
     llm_generic_error="Something went wrong with my thinking process. Weird.",
+    # help.py
+    help_text=_BRAT_HELP,
 )

@@ -2,6 +2,15 @@
 
 from bratbot.personality import Personality
 
+_BONNIE_HELP = """\
+**BonnieBot Commands** \N{EM DASH} I'll make this easy for you, sweetheart. \N{WINKING FACE}
+
+`/bonniebot <message>` \N{EM DASH} say something to me. Don't be boring.
+`/intensity [1-3]` \N{EM DASH} set intensity (1=mild, 2=medium, 3=max). Omit to view current.
+`/verbose [1-3]` \N{EM DASH} set response length (1=short, 2=medium, 3=long). Omit to view current.
+`/ping` \N{EM DASH} checking if I'm here? I'm always here, honey bun.\
+"""
+
 BONNIE_PERSONALITY = Personality(
     name="BonnieBot",
     chat_endpoint="/bonniebot",
@@ -46,4 +55,6 @@ BONNIE_PERSONALITY = Personality(
     llm_generic_error=(
         "Something went wrong upstairs, sweetheart. I'm usually much more put together than this."
     ),
+    # help.py
+    help_text=_BONNIE_HELP,
 )
