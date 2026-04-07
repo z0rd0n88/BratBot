@@ -48,3 +48,14 @@ CLAUDE.md
 .CLAUDE.automatons.md
 .CLAUDE.automatons.json
 .CLAUDE.automatons.hash
+
+# Private strategy/business docs (never publish)
+docs/private/
+docs/monetization-*.md
+docs/*-engagement-*.md
+docs/*-design.md
+docs/superpowers/
+ROADMAP.md
+
+# Test scripts with hardcoded endpoints
+test-api.sh
