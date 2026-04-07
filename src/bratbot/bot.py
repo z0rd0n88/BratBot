@@ -9,6 +9,8 @@ import discord
 from discord.ext import commands
 
 from bratbot.config import settings
+from bratbot.services.intensity_store import IntensityStore
+from bratbot.services.verbosity_store import VerbosityStore
 from bratbot.services.llm_client import LLMClient
 from bratbot.services.rate_limiter import RateLimiter
 from bratbot.services.request_queue import RequestQueue
@@ -25,6 +27,8 @@ class BratBot(commands.Bot):
     llm_client: LLMClient
     request_queue: RequestQueue
     rate_limiter: RateLimiter
+    intensity_store: IntensityStore
+    verbosity_store: VerbosityStore
 
     def __init__(self) -> None:
         intents = discord.Intents.default()
@@ -55,6 +59,8 @@ class BratBot(commands.Bot):
         # Initialize services
         self.request_queue = RequestQueue()
         self.rate_limiter = RateLimiter(redis)
+        self.intensity_store = IntensityStore(redis)
+        self.verbosity_store = VerbosityStore(redis)
 
         # Auto-discover and load all extensions
         await self._load_extensions()

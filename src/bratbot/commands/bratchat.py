@@ -31,13 +31,11 @@ class BratCog(commands.Cog):
     @app_commands.command(name="bratchat", description="Ask the brat a question")
     @app_commands.describe(
         message="What do you want to say?",
-        brat_level="How bratty? (1-3, default: server setting)",
     )
     async def bratchat(
         self,
         interaction: discord.Interaction,
         message: str,
-        brat_level: app_commands.Range[int, 1, 3] | None = None,
     ) -> None:
         # Rate limit check
         guild_id = interaction.guild_id or 0
@@ -53,16 +51,23 @@ class BratCog(commands.Cog):
         # Defer — LLM may take longer than Discord's 3-second interaction timeout
         await interaction.response.defer()
 
+        # Get user's preferred intensity (defaults to 3 if not set)
+        user_intensity = await self.bot.intensity_store.get_intensity(interaction.user.id)
+        user_verbosity = await self.bot.verbosity_store.get_verbosity(interaction.user.id)
+
         log.info(
             "bratchat_command",
             guild_id=guild_id,
             user_id=interaction.user.id,
-            brat_level=brat_level,
+            user_intensity=user_intensity,
+            user_verbosity=user_verbosity,
             message_length=len(message),
         )
 
         async def _call_llm() -> None:
-            response = await self.bot.llm_client.chat(message, brat_level=brat_level)
+            response = await self.bot.llm_client.chat(
+                message, brat_level=user_intensity, verbosity=user_verbosity
+            )
             await interaction.followup.send(response["reply"])
 
         try:

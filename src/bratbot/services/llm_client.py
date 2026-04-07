@@ -57,7 +57,7 @@ class LLMClient:
         except httpx.HTTPError:
             return False
 
-    async def chat(self, message: str, brat_level: int | None = None) -> dict:
+    async def chat(self, message: str, brat_level: int | None = None, verbosity: int = 2) -> dict:
         """Send a message and return the server's response dict.
 
         Returns:
@@ -72,6 +72,7 @@ class LLMClient:
         payload = {
             "message": message[:2000],
             "brat_level": brat_level if brat_level is not None else self._default_brat_level,
+            "verbosity": verbosity,
         }
 
         try:
@@ -96,7 +97,7 @@ class LLMClient:
         )
         return data
 
-    async def cami_chat(self, message: str) -> dict:
+    async def cami_chat(self, message: str, verbosity: int = 2) -> dict:
         """Send a message to the Cami personality endpoint.
 
         Returns:
@@ -108,7 +109,7 @@ class LLMClient:
             LLMServerError: 5xx response.
             LLMValidationError: 4xx response.
         """
-        payload = {"message": message[:2000]}
+        payload = {"message": message[:2000], "verbosity": verbosity}
 
         try:
             resp = await self._client.post("/camichat", json=payload)

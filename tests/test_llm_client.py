@@ -115,7 +115,7 @@ class TestChatHappyPath:
 
         assert captured["method"] == "POST"
         assert captured["path"] == "/bratchat"
-        assert captured["body"] == {"message": "test msg", "brat_level": 2}
+        assert captured["body"] == {"message": "test msg", "brat_level": 2, "verbosity": 2}
 
     async def test_chat_uses_default_brat_level(self, llm_client: LLMClient) -> None:
         """When no brat_level is passed, the client's default (3) is used."""
@@ -341,7 +341,7 @@ class TestCamiChatHappyPath:
 
         assert captured["method"] == "POST"
         assert captured["path"] == "/camichat"
-        assert captured["body"] == {"message": "test msg"}
+        assert captured["body"] == {"message": "test msg", "verbosity": 2}
 
     async def test_cami_chat_no_brat_level_in_payload(self, llm_client: LLMClient) -> None:
         """cami_chat should never send a brat_level field."""

@@ -47,15 +47,18 @@ class CamiCog(commands.Cog):
 
         await interaction.response.defer()
 
+        user_verbosity = await self.bot.verbosity_store.get_verbosity(interaction.user.id)
+
         log.info(
             "camichat_command",
             guild_id=guild_id,
             user_id=interaction.user.id,
+            user_verbosity=user_verbosity,
             message_length=len(message),
         )
 
         async def _call_llm() -> None:
-            response = await self.bot.llm_client.cami_chat(message)
+            response = await self.bot.llm_client.cami_chat(message, verbosity=user_verbosity)
             await interaction.followup.send(response["reply"])
 
         try:

@@ -33,3 +33,25 @@ def llm_client() -> LLMClient:
         default_brat_level=3,
         timeout=10.0,
     )
+
+
+@pytest.fixture
+async def redis_mock():
+    """Mock Redis client for testing — in-memory storage."""
+    class MockRedis:
+        def __init__(self):
+            self._store: dict = {}
+
+        async def set(self, key: str, value: str) -> None:
+            self._store[key] = value
+
+        async def get(self, key: str) -> str | None:
+            return self._store.get(key)
+
+        async def delete(self, key: str) -> None:
+            self._store.pop(key, None)
+
+        async def exists(self, key: str) -> bool:
+            return key in self._store
+
+    return MockRedis()
