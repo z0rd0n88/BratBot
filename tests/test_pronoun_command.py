@@ -27,6 +27,7 @@ class TestPronounCommand:
 
         mock_bot.pronoun_store.set_pronoun.assert_called_once_with(123456, "female")
         mock_interaction.response.send_message.assert_called_once()
+        assert "female" in mock_interaction.response.send_message.call_args[0][0]
 
     async def test_pronoun_get_when_not_set(self) -> None:
         """Getting pronoun when not set shows default message."""
