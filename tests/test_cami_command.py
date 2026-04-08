@@ -28,7 +28,9 @@ class TestCamiCommand:
 
         await cog.camichat.callback(cog, interaction, message="hello")
 
-        mock_bot.cami_llm_client.chat.assert_called_once()
+        mock_bot.cami_llm_client.chat.assert_called_once_with(
+            "hello", verbosity=2, pronoun="male"
+        )
 
     async def test_camichat_passes_female_pronoun(self) -> None:
         """camichat passes the user's female pronoun to cami_llm_client.chat()."""
@@ -72,3 +74,31 @@ class TestCamiCommand:
             await cog.camichat.callback(cog, interaction, message="hello")
 
         mock_bot.cami_llm_client.chat.assert_not_called()
+
+
+class TestCamiReplies:
+    def test_cami_replies_male(self) -> None:
+        """Male pronoun replies contain 'Daddy'."""
+        from bratbot.commands.cami import _cami_replies
+
+        rate, err = _cami_replies("male")
+        assert "Daddy" in rate
+        assert "Daddy" in err
+
+    def test_cami_replies_female(self) -> None:
+        """Female pronoun replies contain 'Mommy'."""
+        from bratbot.commands.cami import _cami_replies
+
+        rate, err = _cami_replies("female")
+        assert "Mommy" in rate
+        assert "Mommy" in err
+
+    def test_cami_replies_other(self) -> None:
+        """Other pronoun replies contain neither 'Daddy' nor 'Mommy'."""
+        from bratbot.commands.cami import _cami_replies
+
+        rate, err = _cami_replies("other")
+        assert "Daddy" not in rate
+        assert "Mommy" not in rate
+        assert "Daddy" not in err
+        assert "Mommy" not in err
