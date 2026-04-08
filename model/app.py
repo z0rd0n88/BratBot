@@ -64,6 +64,16 @@ async def lifespan(app: FastAPI):
     except httpx.HTTPError as e:
         logger.warning("Ollama not reachable at %s: %s", OLLAMA_BASE_URL, e)
         logger.warning("Requests will fail until Ollama is available")
+    else:
+        logger.info("Warming up model %s (loading into VRAM)...", OLLAMA_MODEL)
+        try:
+            await client.post(
+                "/api/generate",
+                json={"model": OLLAMA_MODEL, "keep_alive": -1, "stream": False},
+            )
+            logger.info("Model warm and ready.")
+        except httpx.HTTPError as e:
+            logger.warning("Model warmup failed: %s — first request may be slow", e)
 
     yield
 
