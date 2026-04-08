@@ -1,5 +1,6 @@
 """BratBotModel — personality API layer between BratBot and Ollama."""
 
+import asyncio
 import logging
 import os
 import time
@@ -38,6 +39,29 @@ _DISCORD_LENGTH_INSTRUCTION = (
 
 # Shared async HTTP client (created in lifespan)
 _http_client: httpx.AsyncClient | None = None
+# Set to True once the model warmup request completes
+_model_ready: bool = False
+
+
+async def _do_warmup(client: httpx.AsyncClient) -> None:
+    """Load the model into GPU VRAM so the first real request doesn't stall."""
+    global _model_ready
+    logger.info("Warming up model %s (loading into VRAM)...", OLLAMA_MODEL)
+    try:
+        await client.post(
+            "/api/generate",
+            json={"model": OLLAMA_MODEL, "keep_alive": -1, "stream": False},
+        )
+        logger.info("Model warm and ready.")
+    except httpx.HTTPError as e:
+        logger.warning("Model warmup failed: %s — first request may be slow", e)
+    _model_ready = True
+
+
+def _check_model_ready() -> None:
+    """Raise 503 if the model hasn't finished loading into VRAM yet."""
+    if not _model_ready:
+        raise HTTPException(status_code=503, detail={"status": "warming_up"})
 
 
 # ---------------------------------------------------------------------------
@@ -65,15 +89,7 @@ async def lifespan(app: FastAPI):
         logger.warning("Ollama not reachable at %s: %s", OLLAMA_BASE_URL, e)
         logger.warning("Requests will fail until Ollama is available")
     else:
-        logger.info("Warming up model %s (loading into VRAM)...", OLLAMA_MODEL)
-        try:
-            await client.post(
-                "/api/generate",
-                json={"model": OLLAMA_MODEL, "keep_alive": -1, "stream": False},
-            )
-            logger.info("Model warm and ready.")
-        except httpx.HTTPError as e:
-            logger.warning("Model warmup failed: %s — first request may be slow", e)
+        asyncio.create_task(_do_warmup(client))
 
     yield
 
@@ -187,6 +203,7 @@ async def bratchat(request: ChatRequest):
     """Send a message to the LLM via Ollama and return a bratty response."""
     if _http_client is None:
         raise HTTPException(status_code=503, detail="HTTP client not initialized")
+    _check_model_ready()
 
     request_id = uuid.uuid4().hex[:8]
     logger.info(
@@ -261,6 +278,7 @@ async def camichat(request: CamiChatRequest):
     """Send a message to the LLM via Ollama and return Cami's response."""
     if _http_client is None:
         raise HTTPException(status_code=503, detail="HTTP client not initialized")
+    _check_model_ready()
 
     request_id = uuid.uuid4().hex[:8]
     logger.info(
@@ -333,6 +351,7 @@ async def bonniebot(request: BonnieChatRequest):
     """Send a message to the LLM via Ollama and return Bonnie's response."""
     if _http_client is None:
         raise HTTPException(status_code=503, detail="HTTP client not initialized")
+    _check_model_ready()
 
     request_id = uuid.uuid4().hex[:8]
     logger.info(

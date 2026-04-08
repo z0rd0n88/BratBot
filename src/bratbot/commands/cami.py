@@ -8,7 +8,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from bratbot.services.llm_client import LLMError
+from bratbot.services.llm_client import LLMError, LLMWarmingError
 from bratbot.utils.age_gate import _reply, check_age_verified
 from bratbot.utils.logger import get_logger
 
@@ -19,6 +19,7 @@ log = get_logger(__name__)
 
 RATE_LIMITED_REPLY = "P-please Daddy... I need a moment to catch my breath... I'm sorry..."
 LLM_ERROR_REPLY = "I-I'm so sorry Daddy, my brain broke... please don't be mad at me..."
+WARMING_UP_REPLY = "I-I'm so sorry... the brain is still waking up... please be patient with me..."
 
 
 class CamiCog(commands.Cog):
@@ -71,6 +72,8 @@ class CamiCog(commands.Cog):
                     await self.bot.request_queue.enqueue(active_interaction.channel, _call_llm())
                 else:
                     await _call_llm()
+            except LLMWarmingError:
+                await active_interaction.followup.send(WARMING_UP_REPLY)
             except (LLMError, KeyError):
                 await active_interaction.followup.send(LLM_ERROR_REPLY)
 

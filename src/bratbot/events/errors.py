@@ -95,8 +95,11 @@ class ErrorHandlerCog(commands.Cog):
             LLMServerError,
             LLMTimeoutError,
             LLMValidationError,
+            LLMWarmingError,
         )
 
+        if isinstance(original, LLMWarmingError):
+            return p.llm_warming_up_reply
         if isinstance(original, LLMConnectionError):
             return p.llm_connection_error
         if isinstance(original, LLMTimeoutError):

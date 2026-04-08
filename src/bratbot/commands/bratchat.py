@@ -8,7 +8,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from bratbot.services.llm_client import LLMError
+from bratbot.services.llm_client import LLMError, LLMWarmingError
 from bratbot.utils.age_gate import _reply, check_age_verified
 from bratbot.utils.logger import get_logger
 
@@ -79,6 +79,10 @@ class BratCog(commands.Cog):
                     await self.bot.request_queue.enqueue(active_interaction.channel, _call_llm())
                 else:
                     await _call_llm()
+            except LLMWarmingError:
+                await active_interaction.followup.send(
+                    self.bot.personality.llm_warming_up_reply
+                )
             except (LLMError, KeyError):
                 await active_interaction.followup.send(LLM_ERROR_REPLY)
 

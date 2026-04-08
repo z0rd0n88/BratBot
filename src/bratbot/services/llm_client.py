@@ -34,6 +34,10 @@ class LLMValidationError(LLMError):
     """Server returned a 4xx response (bad request)."""
 
 
+class LLMWarmingError(LLMError):
+    """Server is still loading the model into VRAM."""
+
+
 # ---------------------------------------------------------------------------
 # Client
 # ---------------------------------------------------------------------------
@@ -100,6 +104,13 @@ class LLMClient:
         except httpx.HTTPError as exc:
             raise LLMConnectionError(str(exc)) from exc
 
+        if resp.status_code == 503:
+            try:
+                detail = resp.json().get("detail")
+                if isinstance(detail, dict) and detail.get("status") == "warming_up":
+                    raise LLMWarmingError("Model is warming up")
+            except (ValueError, AttributeError):
+                pass
         if resp.status_code >= 500:
             raise LLMServerError(f"LLM server error: {resp.status_code}")
         if resp.status_code >= 400:
@@ -136,6 +147,13 @@ class LLMClient:
         except httpx.HTTPError as exc:
             raise LLMConnectionError(str(exc)) from exc
 
+        if resp.status_code == 503:
+            try:
+                detail = resp.json().get("detail")
+                if isinstance(detail, dict) and detail.get("status") == "warming_up":
+                    raise LLMWarmingError("Model is warming up")
+            except (ValueError, AttributeError):
+                pass
         if resp.status_code >= 500:
             raise LLMServerError(f"LLM server error: {resp.status_code}")
         if resp.status_code >= 400:

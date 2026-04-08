@@ -36,6 +36,7 @@ class Personality:
     llm_server_error: str
     llm_validation_error: str
     llm_generic_error: str
+    llm_warming_up_reply: str
 
     # --- help.py strings ---
     help_text: str
@@ -71,6 +72,7 @@ BRAT_PERSONALITY = Personality(
     llm_server_error="My brain had a hiccup. Try again.",
     llm_validation_error="That doesn't make sense. Even for you.",
     llm_generic_error="Something went wrong with my thinking process. Weird.",
+    llm_warming_up_reply="My brain's still booting up. Give it a minute, genius.",
     # help.py
     help_text=_BRAT_HELP,
 )

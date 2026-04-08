@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import discord
 from discord.ext import commands
 
-from bratbot.services.llm_client import LLMError
+from bratbot.services.llm_client import LLMError, LLMWarmingError
 from bratbot.utils.logger import get_logger
 
 if TYPE_CHECKING:
@@ -70,6 +70,8 @@ class MessageCog(commands.Cog):
 
         try:
             await self.bot.request_queue.enqueue(message.channel, _call_llm())
+        except LLMWarmingError:
+            await message.reply(self.bot.personality.llm_warming_up_reply)
         except (LLMError, KeyError):
             await message.reply(self.bot.personality.llm_error_reply)
 

@@ -55,6 +55,10 @@ BONNIE_PERSONALITY = Personality(
     llm_generic_error=(
         "Something went wrong upstairs, sweetheart. I'm usually much more put together than this."
     ),
+    llm_warming_up_reply=(
+        "Hold on, honey bun \N{EM DASH} I'm still warming up. Literally."
+        " Give me just a moment and I'll be all yours."
+    ),
     # help.py
     help_text=_BONNIE_HELP,
 )

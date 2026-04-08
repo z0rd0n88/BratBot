@@ -8,7 +8,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from bratbot.services.llm_client import LLMError
+from bratbot.services.llm_client import LLMError, LLMWarmingError
 from bratbot.utils.logger import get_logger
 
 if TYPE_CHECKING:
@@ -76,6 +76,8 @@ class BonnieCog(commands.Cog):
                 await self.bot.request_queue.enqueue(interaction.channel, _call_llm())
             else:
                 await _call_llm()
+        except LLMWarmingError:
+            await interaction.followup.send(self.bot.personality.llm_warming_up_reply)
         except (LLMError, KeyError):
             await interaction.followup.send(self.bot.personality.llm_error_reply)
 
