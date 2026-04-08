@@ -52,9 +52,10 @@ class BonnieCog(commands.Cog):
         # Defer — LLM may take longer than Discord's 3-second interaction timeout
         await interaction.response.defer()
 
-        # Get user's preferred intensity and verbosity
+        # Get user's preferred intensity, verbosity, and pronoun
         user_intensity = await self.bot.intensity_store.get_intensity(interaction.user.id)
         user_verbosity = await self.bot.verbosity_store.get_verbosity(interaction.user.id)
+        user_pronoun = await self.bot.pronoun_store.get_pronoun(interaction.user.id)
 
         log.info(
             "bonniebot_command",
@@ -62,12 +63,13 @@ class BonnieCog(commands.Cog):
             user_id=interaction.user.id,
             user_intensity=user_intensity,
             user_verbosity=user_verbosity,
+            user_pronoun=user_pronoun,
             message_length=len(message),
         )
 
         async def _call_llm() -> None:
             response = await self.bot.llm_client.chat(
-                message, brat_level=user_intensity, verbosity=user_verbosity
+                message, brat_level=user_intensity, verbosity=user_verbosity, pronoun=user_pronoun
             )
             await interaction.followup.send(f"> {message}\n\n{response['reply']}")
 

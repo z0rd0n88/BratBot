@@ -158,12 +158,14 @@ class ChatRequest(BaseModel):
 class CamiChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
     verbosity: int = Field(default=2, ge=1, le=3)
+    pronoun: str = Field(default="male")
 
 
 class BonnieChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
     level: int = Field(default=3, ge=1, le=3)
     verbosity: int = Field(default=2, ge=1, le=3)
+    pronoun: str = Field(default="male")
 
 
 # ---------------------------------------------------------------------------
@@ -210,6 +212,27 @@ def get_bonnie_system_prompt() -> str:
     if not path.exists():
         raise RuntimeError("Bonnie prompt file not found: model/prompts/bonnie.txt")
     return path.read_text(encoding="utf-8").strip()
+
+
+def _pronoun_suffix(pronoun: str, female_term: str, male_term: str) -> str:
+    """Return a system prompt suffix based on the user's pronoun preference.
+
+    Args:
+        pronoun: "male", "female", or "other"
+        female_term: The address term to use for female (e.g. "Mommy")
+        male_term: The address term to use for male (e.g. "Daddy")
+
+    Returns:
+        A short instruction string to append to the system prompt, or "" for male.
+    """
+    if pronoun == "female":
+        return f"\n\nAddress the user as '{female_term}' instead of '{male_term}'."
+    if pronoun == "other":
+        return (
+            f"\n\nThe user prefers gender-neutral address. "
+            f"Do not use '{male_term}' or '{female_term}'."
+        )
+    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -337,7 +360,11 @@ async def camichat(request: CamiChatRequest):
 
     current_mood = random.choice(CAMI_MOODS)
     logger.info("[%s] mood=%s", request_id, current_mood[:40])
-    system_prompt = get_cami_system_prompt() + f"\n\n[TODAY'S VIBE: {current_mood}]"
+    system_prompt = (
+        get_cami_system_prompt()
+        + _pronoun_suffix(request.pronoun, female_term="Mommy", male_term="Daddy")
+        + f"\n\n[TODAY'S VIBE: {current_mood}]"
+    )
     ollama_payload = {
         "model": OLLAMA_MODEL,
         "messages": [
@@ -415,7 +442,11 @@ async def bonniebot(request: BonnieChatRequest):
 
     current_mood = random.choice(BONNIE_MOODS)
     logger.info("[%s] mood=%s", request_id, current_mood[:40])
-    system_prompt = get_bonnie_system_prompt() + f"\n\n[TODAY'S VIBE: {current_mood}]"
+    system_prompt = (
+        get_bonnie_system_prompt()
+        + _pronoun_suffix(request.pronoun, female_term="Ma'am", male_term="Sir")
+        + f"\n\n[TODAY'S VIBE: {current_mood}]"
+    )
     ollama_payload = {
         "model": OLLAMA_MODEL,
         "messages": [

@@ -5,7 +5,7 @@ from pydantic import ValidationError
 from starlette.testclient import TestClient
 
 # conftest.py sets DISCORD_PUBLIC_KEY and adds model/ to sys.path before collection
-from app import ChatRequest, app
+from app import BonnieChatRequest, CamiChatRequest, ChatRequest, app
 
 
 @pytest.fixture
@@ -64,6 +64,34 @@ class TestChatRequestBratLevel:
     def test_brat_level_rejects_non_int(self):
         with pytest.raises(ValidationError):
             ChatRequest(message="hi", brat_level="high")
+
+
+class TestCamiChatRequestPronoun:
+    def test_pronoun_defaults_to_male(self):
+        req = CamiChatRequest(message="hi")
+        assert req.pronoun == "male"
+
+    def test_pronoun_female(self):
+        req = CamiChatRequest(message="hi", pronoun="female")
+        assert req.pronoun == "female"
+
+    def test_pronoun_other(self):
+        req = CamiChatRequest(message="hi", pronoun="other")
+        assert req.pronoun == "other"
+
+
+class TestBonnieChatRequestPronoun:
+    def test_pronoun_defaults_to_male(self):
+        req = BonnieChatRequest(message="hi")
+        assert req.pronoun == "male"
+
+    def test_pronoun_female(self):
+        req = BonnieChatRequest(message="hi", pronoun="female")
+        assert req.pronoun == "female"
+
+    def test_pronoun_other(self):
+        req = BonnieChatRequest(message="hi", pronoun="other")
+        assert req.pronoun == "other"
 
 
 # ---------------------------------------------------------------------------

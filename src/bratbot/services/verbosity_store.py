@@ -42,4 +42,4 @@ class VerbosityStore:
 
     async def was_set(self, user_id: int) -> bool:
         """Check if user has explicitly set their verbosity preference."""
-        return await self.redis.exists(f"user:{user_id}:verbosity")
+        return bool(await self.redis.exists(f"user:{user_id}:verbosity"))

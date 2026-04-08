@@ -53,4 +53,4 @@ class IntensityStore:
             True if user has set a preference, False otherwise
         """
         key = f"user:{user_id}:intensity"
-        return await self.redis.exists(key)
+        return bool(await self.redis.exists(key))

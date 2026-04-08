@@ -104,7 +104,7 @@ class TestChatHappyPath:
 
         assert captured["method"] == "POST"
         assert captured["path"] == "/bratchat"
-        assert captured["body"] == {"message": "test msg", "brat_level": 2, "verbosity": 2}
+        assert captured["body"] == {"message": "test msg", "brat_level": 2, "verbosity": 2, "pronoun": "male"}
 
     async def test_chat_uses_default_brat_level(self, llm_client: LLMClient) -> None:
         """When no brat_level is passed, the client's default (3) is used."""
@@ -147,6 +147,30 @@ class TestChatHappyPath:
 
         assert captured["body"]["brat_level"] == brat_level
         assert result["brat_level"] == brat_level
+
+    async def test_chat_sends_pronoun_female(self, llm_client: LLMClient) -> None:
+        captured: dict = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["body"] = json.loads(request.content)
+            return httpx.Response(200, json=CHAT_RESPONSE)
+
+        _inject_transport(llm_client, handler)
+        await llm_client.chat("hi", pronoun="female")
+
+        assert captured["body"]["pronoun"] == "female"
+
+    async def test_chat_pronoun_defaults_to_male(self, llm_client: LLMClient) -> None:
+        captured: dict = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["body"] = json.loads(request.content)
+            return httpx.Response(200, json=CHAT_RESPONSE)
+
+        _inject_transport(llm_client, handler)
+        await llm_client.chat("hi")
+
+        assert captured["body"]["pronoun"] == "male"
 
 
 # ---------------------------------------------------------------------------
