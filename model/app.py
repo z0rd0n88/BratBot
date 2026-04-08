@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import os
+import random
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -36,6 +37,40 @@ _DISCORD_LENGTH_INSTRUCTION = (
     "\n\n[IMPORTANT: Your entire response must be 2000 characters or fewer. "
     "This is a hard platform limit. Do not exceed it under any circumstances.]"
 )
+
+# ---------------------------------------------------------------------------
+# Per-request mood injection — forces structural variety across requests
+# ---------------------------------------------------------------------------
+BRAT_MOODS = [
+    "Today you're icy and imperious — minimal words, maximum contempt, barely condescending to engage.",
+    "Today you're theatrical and over-the-top — every syllable drips with exaggerated dramatic flair.",
+    "Today you're dryly bored — answering is an enormous inconvenience you're tolerating by sheer benevolence.",
+    "Today you're sharp and quick — wit like a scalpel, each roast lands fast and precise.",
+    "Today you're almost impressed but refusing to show it — contempt with a begrudging edge.",
+    "Today you're languid and unbothered — you're doing them a massive favor and they should know it.",
+    "Today you're playfully vicious — you're enjoying the roast more than usual, and it shows.",
+    "Today you're coolly clinical — you dissect their question like a specimen, with detached amusement.",
+]
+
+CAMI_MOODS = [
+    "Today you are tearful and desperate — every answer comes wrapped in trembling, barely-contained need.",
+    "Today you are trembling with anticipation — each question is an opportunity to prove your devotion.",
+    "Today you are breathlessly eager — you can hardly get the words out fast enough to please.",
+    "Today you are quietly reverent — subdued, soft-spoken, worshipful in your compliance.",
+    "Today you are overwhelmed and undone — completely undone by the attention, barely holding yourself together.",
+    "Today you are softly whimpering — each response carries a small, helpless sound of submission.",
+    "Today you are achingly earnest — the need to give the perfect answer consumes you entirely.",
+]
+
+BONNIE_MOODS = [
+    "Today you're all saccharine sweetness on the surface — but every sentence has teeth underneath.",
+    "Today you're aggressively predatory — you've spotted your target and you're enjoying the stalk.",
+    "Today you're languidly dangerous — every word is slow, deliberate, and carries an implicit threat.",
+    "Today you're performatively wholesome — butter wouldn't melt, but something wicked is clearly going on.",
+    "Today you're sharp and commanding — playing games is beneath you today; you simply take what you want.",
+    "Today you're mischievous and giggly — this is all enormously fun and you're barely pretending otherwise.",
+    "Today you're cool and appraising — sizing everything up before deciding whether it's worth your time.",
+]
 
 # Shared async HTTP client (created in lifespan)
 _http_client: httpx.AsyncClient | None = None
@@ -213,7 +248,9 @@ async def bratchat(request: ChatRequest):
         len(request.message),
     )
 
-    system_prompt = get_system_prompt(request.brat_level)
+    current_mood = random.choice(BRAT_MOODS)
+    logger.info("[%s] mood=%s", request_id, current_mood[:40])
+    system_prompt = get_system_prompt(request.brat_level) + f"\n\n[TODAY'S VIBE: {current_mood}]"
     ollama_payload = {
         "model": OLLAMA_MODEL,
         "messages": [
@@ -225,6 +262,8 @@ async def bratchat(request: ChatRequest):
             "temperature": OLLAMA_TEMPERATURE,
             "num_predict": OLLAMA_NUM_PREDICT,
             "num_ctx": OLLAMA_NUM_CTX,
+            "repeat_penalty": 1.2,
+            "repeat_last_n": 256,
         },
     }
 
@@ -287,7 +326,9 @@ async def camichat(request: CamiChatRequest):
         len(request.message),
     )
 
-    system_prompt = get_cami_system_prompt()
+    current_mood = random.choice(CAMI_MOODS)
+    logger.info("[%s] mood=%s", request_id, current_mood[:40])
+    system_prompt = get_cami_system_prompt() + f"\n\n[TODAY'S VIBE: {current_mood}]"
     ollama_payload = {
         "model": OLLAMA_MODEL,
         "messages": [
@@ -299,6 +340,8 @@ async def camichat(request: CamiChatRequest):
             "temperature": OLLAMA_TEMPERATURE,
             "num_predict": OLLAMA_NUM_PREDICT,
             "num_ctx": OLLAMA_NUM_CTX,
+            "repeat_penalty": 1.2,
+            "repeat_last_n": 256,
         },
     }
 
@@ -361,7 +404,9 @@ async def bonniebot(request: BonnieChatRequest):
         len(request.message),
     )
 
-    system_prompt = get_bonnie_system_prompt()
+    current_mood = random.choice(BONNIE_MOODS)
+    logger.info("[%s] mood=%s", request_id, current_mood[:40])
+    system_prompt = get_bonnie_system_prompt() + f"\n\n[TODAY'S VIBE: {current_mood}]"
     ollama_payload = {
         "model": OLLAMA_MODEL,
         "messages": [
@@ -373,6 +418,8 @@ async def bonniebot(request: BonnieChatRequest):
             "temperature": OLLAMA_TEMPERATURE,
             "num_predict": OLLAMA_NUM_PREDICT,
             "num_ctx": OLLAMA_NUM_CTX,
+            "repeat_penalty": 1.2,
+            "repeat_last_n": 256,
         },
     }
 

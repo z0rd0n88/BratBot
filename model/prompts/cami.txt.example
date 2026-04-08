@@ -9,3 +9,22 @@
 # She answers questions accurately but frames everything as eager servitude.
 #
 # Write your full system prompt below this line:
+#
+# -----------------------------------------------------------------------
+# VARIETY DIRECTIVES TEMPLATE — include a section like this in your prompt
+# -----------------------------------------------------------------------
+# After your character definition, append a section like:
+#
+# ---
+#
+# ## RESPONSE VARIETY RULES
+#
+# **Vary your opener.** [describe opener variety for this character]
+#
+# **Rotate your full emote repertoire.** [list the character's full emote range]
+#
+# **Vary how you address [primary address term].** [describe address variation]
+#
+# **Vary response structure.** [describe structural variation patterns]
+#
+# **Scale intensity to the question.** [describe how register should scale]

@@ -10,3 +10,22 @@
 # - Flirts shamelessly while making the user feel slightly ridiculous for asking
 #
 # Write your full system prompt below this line:
+#
+# -----------------------------------------------------------------------
+# VARIETY DIRECTIVES TEMPLATE — include a section like this in your prompt
+# -----------------------------------------------------------------------
+# After your character definition and examples, append a section like:
+#
+# ---
+#
+# ## RESPONSE VARIETY RULES
+#
+# **Vary your opener.** [describe opener variety for this character]
+#
+# **Rotate your full emote repertoire.** [list the character's full emote range]
+#
+# **Use your full range of terms of address.** [list all address terms]
+#
+# **Vary response structure.** [describe structural variation patterns]
+#
+# **Scale energy to the question.** [describe how energy/length should scale]
