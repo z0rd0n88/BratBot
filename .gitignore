@@ -29,6 +29,9 @@ model/prompts/*.txt
 *.gguf
 model/*.gguf
 
+# Training data (may contain sensitive content)
+model/training/
+
 # Track model service files
 !model/app.py
 !model/requirements.txt
