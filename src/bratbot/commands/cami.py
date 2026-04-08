@@ -17,9 +17,26 @@ if TYPE_CHECKING:
 
 log = get_logger(__name__)
 
-RATE_LIMITED_REPLY = "P-please Daddy... I need a moment to catch my breath... I'm sorry..."
-LLM_ERROR_REPLY = "I-I'm so sorry Daddy, my brain broke... please don't be mad at me..."
 WARMING_UP_REPLY = "I-I'm so sorry... the brain is still waking up... please be patient with me..."
+
+
+def _cami_replies(pronoun: str) -> tuple[str, str]:
+    """Return (rate_limited_reply, llm_error_reply) for the user's pronoun preference."""
+    if pronoun == "female":
+        return (
+            "P-please Mommy... I need a moment to catch my breath... I'm sorry...",
+            "I-I'm so sorry Mommy, my brain broke... please don't be mad at me...",
+        )
+    if pronoun == "other":
+        return (
+            "P-please... I need a moment to catch my breath... I'm sorry...",
+            "I-I'm so sorry, my brain broke... please don't be mad at me...",
+        )
+    # default: male
+    return (
+        "P-please Daddy... I need a moment to catch my breath... I'm sorry...",
+        "I-I'm so sorry Daddy, my brain broke... please don't be mad at me...",
+    )
 
 
 class CamiCog(commands.Cog):
@@ -38,33 +55,39 @@ class CamiCog(commands.Cog):
         message: str,
     ) -> None:
         async def _run(active_interaction: discord.Interaction) -> None:
+            user_id = active_interaction.user.id
             guild_id = active_interaction.guild_id or 0
-            if not await self.bot.rate_limiter.check_user(active_interaction.user.id, guild_id):
-                await _reply(active_interaction, RATE_LIMITED_REPLY, ephemeral=True)
+
+            user_pronoun = await self.bot.pronoun_store.get_pronoun(user_id)
+            rate_limited_reply, llm_error_reply = _cami_replies(user_pronoun)
+
+            if not await self.bot.rate_limiter.check_user(user_id, guild_id):
+                await _reply(active_interaction, rate_limited_reply, ephemeral=True)
                 return
             if active_interaction.channel and not await self.bot.rate_limiter.check_channel(
                 active_interaction.channel.id,
             ):
-                await _reply(active_interaction, RATE_LIMITED_REPLY, ephemeral=True)
+                await _reply(active_interaction, rate_limited_reply, ephemeral=True)
                 return
 
             if not active_interaction.response.is_done():
                 await active_interaction.response.defer()
 
-            user_verbosity = await self.bot.verbosity_store.get_verbosity(
-                active_interaction.user.id
-            )
+            user_verbosity = await self.bot.verbosity_store.get_verbosity(user_id)
 
             log.info(
                 "camichat_command",
                 guild_id=guild_id,
-                user_id=active_interaction.user.id,
+                user_id=user_id,
                 user_verbosity=user_verbosity,
+                user_pronoun=user_pronoun,
                 message_length=len(message),
             )
 
             async def _call_llm() -> None:
-                response = await self.bot.cami_llm_client.chat(message, verbosity=user_verbosity)
+                response = await self.bot.cami_llm_client.chat(
+                    message, verbosity=user_verbosity, pronoun=user_pronoun
+                )
                 await active_interaction.followup.send(response["reply"])
 
             try:
@@ -75,7 +98,7 @@ class CamiCog(commands.Cog):
             except LLMWarmingError:
                 await active_interaction.followup.send(WARMING_UP_REPLY)
             except (LLMError, KeyError):
-                await active_interaction.followup.send(LLM_ERROR_REPLY)
+                await active_interaction.followup.send(llm_error_reply)
 
         if not await check_age_verified(interaction, self.bot, _run):
             return
