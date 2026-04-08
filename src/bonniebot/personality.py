@@ -8,6 +8,7 @@ _BONNIE_HELP = """\
 `/bonniebot <message>` \N{EM DASH} say something to me. Don't be boring.
 `/intensity [1-3]` \N{EM DASH} set intensity (1=mild, 2=medium, 3=max). Omit to view current.
 `/verbose [1-3]` \N{EM DASH} set response length (1=short, 2=medium, 3=long). Omit to view current.
+`/pronoun [choice]` \N{EM DASH} set how I address you (male/female/other). Omit to view current.
 `/ping` \N{EM DASH} checking if I'm here? I'm always here, honey bun.\
 """
 
