@@ -15,7 +15,7 @@ class TestCamiCommand:
         mock_bot.rate_limiter.check_user = AsyncMock(return_value=True)
         mock_bot.rate_limiter.check_channel = AsyncMock(return_value=True)
         mock_bot.verbosity_store.get_verbosity = AsyncMock(return_value=2)
-        mock_bot.llm_client.cami_chat = AsyncMock(return_value={"request_id": "x", "reply": "hi"})
+        mock_bot.cami_llm_client.chat = AsyncMock(return_value={"request_id": "x", "reply": "hi"})
         mock_bot.request_queue = AsyncMock()
 
         cog = CamiCog(mock_bot)
@@ -27,7 +27,7 @@ class TestCamiCommand:
 
         await cog.camichat.callback(cog, interaction, message="hello")
 
-        mock_bot.llm_client.cami_chat.assert_called_once()
+        mock_bot.cami_llm_client.chat.assert_called_once()
 
     async def test_camichat_returns_early_when_unverified(self) -> None:
         """camichat returns without calling LLM when age gate returns False."""
@@ -44,4 +44,4 @@ class TestCamiCommand:
             mock_gate.return_value = False
             await cog.camichat.callback(cog, interaction, message="hello")
 
-        mock_bot.llm_client.cami_chat.assert_not_called()
+        mock_bot.cami_llm_client.chat.assert_not_called()

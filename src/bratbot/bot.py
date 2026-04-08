@@ -28,6 +28,7 @@ _COG_PACKAGES = ("bratbot.commands", "bratbot.events")
 class BratBot(commands.Bot):
     personality: Personality
     llm_client: LLMClient
+    cami_llm_client: LLMClient
     request_queue: RequestQueue
     rate_limiter: RateLimiter
     intensity_store: IntensityStore
@@ -55,6 +56,12 @@ class BratBot(commands.Bot):
         self.llm_client = LLMClient(
             base_url=settings.llm_api_url,
             chat_endpoint=self.personality.chat_endpoint,
+            default_brat_level=settings.llm_brat_level,
+            timeout=settings.llm_timeout_seconds,
+        )
+        self.cami_llm_client = LLMClient(
+            base_url=settings.llm_api_url,
+            chat_endpoint="/camichat",
             default_brat_level=settings.llm_brat_level,
             timeout=settings.llm_timeout_seconds,
         )
@@ -140,6 +147,8 @@ class BratBot(commands.Bot):
     async def close(self) -> None:
         if hasattr(self, "llm_client"):
             await self.llm_client.close()
+        if hasattr(self, "cami_llm_client"):
+            await self.cami_llm_client.close()
         await close_redis()
         log.info("connections_closed")
         await super().close()

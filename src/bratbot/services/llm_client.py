@@ -44,11 +44,11 @@ class LLMWarmingError(LLMError):
 
 
 class LLMClient:
-    """Wraps the LLM server's ``/health``, chat, and ``/camichat`` endpoints.
+    """Wraps the LLM server's ``/health`` and chat endpoints.
 
     Args:
         base_url: Base URL of the model server.
-        chat_endpoint: Path called by :meth:`chat` (e.g. ``"/bratchat"`` or ``"/bonniebot"``).
+        chat_endpoint: Path called by :meth:`chat` (e.g. ``"/bratchat"``, ``"/camichat"``, ``"/bonniebot"``).
         default_brat_level: Default intensity level when none is supplied.
         timeout: Request timeout in seconds.
     """
@@ -122,45 +122,6 @@ class LLMClient:
             request_id=data.get("request_id"),
             brat_level=data.get("brat_level"),
         )
-        return data
-
-    async def cami_chat(self, message: str, verbosity: int = 2) -> dict:
-        """Send a message to the Cami personality endpoint.
-
-        Returns:
-            ``{"request_id": ..., "reply": ...}``
-
-        Raises:
-            LLMConnectionError: Server unreachable.
-            LLMTimeoutError: Request timed out.
-            LLMServerError: 5xx response.
-            LLMValidationError: 4xx response.
-        """
-        payload = {"message": message[:2000], "verbosity": verbosity}
-
-        try:
-            resp = await self._client.post("/camichat", json=payload)
-        except httpx.ConnectError as exc:
-            raise LLMConnectionError("LLM server unreachable") from exc
-        except httpx.TimeoutException as exc:
-            raise LLMTimeoutError("LLM request timed out") from exc
-        except httpx.HTTPError as exc:
-            raise LLMConnectionError(str(exc)) from exc
-
-        if resp.status_code == 503:
-            try:
-                detail = resp.json().get("detail")
-                if isinstance(detail, dict) and detail.get("status") == "warming_up":
-                    raise LLMWarmingError("Model is warming up")
-            except (ValueError, AttributeError):
-                pass
-        if resp.status_code >= 500:
-            raise LLMServerError(f"LLM server error: {resp.status_code}")
-        if resp.status_code >= 400:
-            raise LLMValidationError(f"LLM bad request: {resp.status_code}")
-
-        data = resp.json()
-        log.debug("llm_cami_chat_response", request_id=data.get("request_id"))
         return data
 
     async def close(self) -> None:

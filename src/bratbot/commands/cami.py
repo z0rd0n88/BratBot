@@ -64,7 +64,7 @@ class CamiCog(commands.Cog):
             )
 
             async def _call_llm() -> None:
-                response = await self.bot.llm_client.cami_chat(message, verbosity=user_verbosity)
+                response = await self.bot.cami_llm_client.chat(message, verbosity=user_verbosity)
                 await active_interaction.followup.send(response["reply"])
 
             try:

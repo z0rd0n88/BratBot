@@ -67,7 +67,7 @@ class TestCamichatPassesVerbosity:
         mock_bot.rate_limiter.check_user = AsyncMock(return_value=True)
         mock_bot.rate_limiter.check_channel = AsyncMock(return_value=True)
         mock_bot.verbosity_store.get_verbosity = AsyncMock(return_value=2)
-        mock_bot.llm_client.cami_chat = AsyncMock(return_value={"request_id": "x", "reply": "hi"})
+        mock_bot.cami_llm_client.chat = AsyncMock(return_value={"request_id": "x", "reply": "hi"})
         mock_bot.request_queue = AsyncMock()
         mock_bot.age_verification_store = AsyncMock()
         mock_bot.age_verification_store.is_verified = AsyncMock(return_value=True)
@@ -91,7 +91,7 @@ class TestCamichatPassesVerbosity:
         mock_bot.rate_limiter.check_user = AsyncMock(return_value=True)
         mock_bot.rate_limiter.check_channel = AsyncMock(return_value=True)
         mock_bot.verbosity_store.get_verbosity = AsyncMock(return_value=3)
-        mock_bot.llm_client.cami_chat = AsyncMock(return_value={"request_id": "x", "reply": "hi"})
+        mock_bot.cami_llm_client.chat = AsyncMock(return_value={"request_id": "x", "reply": "hi"})
         mock_bot.request_queue = AsyncMock()
         mock_bot.age_verification_store = AsyncMock()
         mock_bot.age_verification_store.is_verified = AsyncMock(return_value=True)
@@ -105,5 +105,5 @@ class TestCamichatPassesVerbosity:
 
         await cog.camichat.callback(cog, interaction, message="hello")
 
-        mock_bot.llm_client.cami_chat.assert_called_once()
-        assert mock_bot.llm_client.cami_chat.call_args[1]["verbosity"] == 3
+        mock_bot.cami_llm_client.chat.assert_called_once()
+        assert mock_bot.cami_llm_client.chat.call_args[1]["verbosity"] == 3
