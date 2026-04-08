@@ -75,7 +75,13 @@ class LLMClient:
         except httpx.HTTPError:
             return False
 
-    async def chat(self, message: str, brat_level: int | None = None, verbosity: int = 2, pronoun: str = "male") -> dict:
+    async def chat(
+        self,
+        message: str,
+        brat_level: int | None = None,
+        verbosity: int = 2,
+        pronoun: str = "male",
+    ) -> dict:
         """Send a message and return the server's response dict.
 
         Posts to the ``chat_endpoint`` supplied at construction time.

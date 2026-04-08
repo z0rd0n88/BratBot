@@ -50,7 +50,7 @@ _BRAT_HELP = """\
 `/camichat <message>` \N{EM DASH} chat with Cami instead. She's more patient than I am.
 `/intensity [1-3]` \N{EM DASH} set brat intensity (1=mild, 2=medium, 3=max). Omit to view current.
 `/verbose [1-3]` \N{EM DASH} set response length (1=short, 2=medium, 3=long). Omit to view current.
-`/pronoun [choice]` \N{EM DASH} set how Cami addresses you (male/female/other). Omit to view current.
+`/pronoun [choice]` \N{EM DASH} set how Cami addresses you (male/female/other).
 `/ping` \N{EM DASH} check that I'm alive. I am.\
 """
 

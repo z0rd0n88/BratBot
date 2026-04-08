@@ -44,7 +44,7 @@ class BonniePronounCog(commands.Cog):
             await self.bot.pronoun_store.set_pronoun(user_id, pronoun.value)
             log.info("pronoun_set", user_id=user_id, pronoun=pronoun.value)
             await interaction.response.send_message(
-                f"Got it, {pronoun.value}! I'll address you accordingly, sweetheart. \N{WINKING FACE}"
+                f"Got it! I'll address you as {pronoun.value}, sweetheart. \N{WINKING FACE}"
             )
         else:
             was_explicitly_set = await self.bot.pronoun_store.was_set(user_id)

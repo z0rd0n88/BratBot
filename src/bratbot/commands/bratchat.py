@@ -80,9 +80,7 @@ class BratCog(commands.Cog):
                 else:
                     await _call_llm()
             except LLMWarmingError:
-                await active_interaction.followup.send(
-                    self.bot.personality.llm_warming_up_reply
-                )
+                await active_interaction.followup.send(self.bot.personality.llm_warming_up_reply)
             except (LLMError, KeyError):
                 await active_interaction.followup.send(LLM_ERROR_REPLY)
 

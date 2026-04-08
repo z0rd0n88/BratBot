@@ -287,7 +287,12 @@ async def bratchat(request: ChatRequest):
         "model": OLLAMA_MODEL,
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": request.message + _DISCORD_LENGTH_INSTRUCTION + _VERBOSITY_INSTRUCTIONS[request.verbosity]},
+            {
+                "role": "user",
+                "content": request.message
+                + _DISCORD_LENGTH_INSTRUCTION
+                + _VERBOSITY_INSTRUCTIONS[request.verbosity],
+            },
         ],
         "stream": False,
         "options": {
@@ -316,7 +321,9 @@ async def bratchat(request: ChatRequest):
         if resp.status_code != 200:
             logger.error(
                 "[%s] Ollama returned status %d: %s",
-                request_id, resp.status_code, resp.text,
+                request_id,
+                resp.status_code,
+                resp.text,
             )
             raise HTTPException(status_code=500, detail="Inference error")
 
@@ -328,12 +335,17 @@ async def bratchat(request: ChatRequest):
         if attempt < _MAX_REPLY_RETRIES:
             logger.warning(
                 "[%s] reply too long (%d chars), retrying (attempt %d/%d)",
-                request_id, len(reply), attempt + 1, _MAX_REPLY_RETRIES + 1,
+                request_id,
+                len(reply),
+                attempt + 1,
+                _MAX_REPLY_RETRIES + 1,
             )
         else:
             logger.error(
                 "[%s] reply still too long (%d chars) after %d retries, truncating",
-                request_id, len(reply), _MAX_REPLY_RETRIES,
+                request_id,
+                len(reply),
+                _MAX_REPLY_RETRIES,
             )
             reply = reply[:DISCORD_MAX_LENGTH]
 
@@ -369,7 +381,12 @@ async def camichat(request: CamiChatRequest):
         "model": OLLAMA_MODEL,
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": request.message + _DISCORD_LENGTH_INSTRUCTION + _VERBOSITY_INSTRUCTIONS[request.verbosity]},
+            {
+                "role": "user",
+                "content": request.message
+                + _DISCORD_LENGTH_INSTRUCTION
+                + _VERBOSITY_INSTRUCTIONS[request.verbosity],
+            },
         ],
         "stream": False,
         "options": {
@@ -398,7 +415,9 @@ async def camichat(request: CamiChatRequest):
         if resp.status_code != 200:
             logger.error(
                 "[%s] Ollama returned status %d: %s",
-                request_id, resp.status_code, resp.text,
+                request_id,
+                resp.status_code,
+                resp.text,
             )
             raise HTTPException(status_code=500, detail="Inference error")
 
@@ -410,12 +429,17 @@ async def camichat(request: CamiChatRequest):
         if attempt < _MAX_REPLY_RETRIES:
             logger.warning(
                 "[%s] camichat reply too long (%d chars), retrying (attempt %d/%d)",
-                request_id, len(reply), attempt + 1, _MAX_REPLY_RETRIES + 1,
+                request_id,
+                len(reply),
+                attempt + 1,
+                _MAX_REPLY_RETRIES + 1,
             )
         else:
             logger.error(
                 "[%s] camichat reply still too long (%d chars) after %d retries, truncating",
-                request_id, len(reply), _MAX_REPLY_RETRIES,
+                request_id,
+                len(reply),
+                _MAX_REPLY_RETRIES,
             )
             reply = reply[:DISCORD_MAX_LENGTH]
 
@@ -451,7 +475,12 @@ async def bonniebot(request: BonnieChatRequest):
         "model": OLLAMA_MODEL,
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": request.message + _DISCORD_LENGTH_INSTRUCTION + _VERBOSITY_INSTRUCTIONS[request.verbosity]},
+            {
+                "role": "user",
+                "content": request.message
+                + _DISCORD_LENGTH_INSTRUCTION
+                + _VERBOSITY_INSTRUCTIONS[request.verbosity],
+            },
         ],
         "stream": False,
         "options": {
@@ -480,7 +509,9 @@ async def bonniebot(request: BonnieChatRequest):
         if resp.status_code != 200:
             logger.error(
                 "[%s] Ollama returned status %d: %s",
-                request_id, resp.status_code, resp.text,
+                request_id,
+                resp.status_code,
+                resp.text,
             )
             raise HTTPException(status_code=500, detail="Inference error")
 
@@ -492,12 +523,17 @@ async def bonniebot(request: BonnieChatRequest):
         if attempt < _MAX_REPLY_RETRIES:
             logger.warning(
                 "[%s] bonniebot reply too long (%d chars), retrying (attempt %d/%d)",
-                request_id, len(reply), attempt + 1, _MAX_REPLY_RETRIES + 1,
+                request_id,
+                len(reply),
+                attempt + 1,
+                _MAX_REPLY_RETRIES + 1,
             )
         else:
             logger.error(
                 "[%s] bonniebot reply still too long (%d chars) after %d retries, truncating",
-                request_id, len(reply), _MAX_REPLY_RETRIES,
+                request_id,
+                len(reply),
+                _MAX_REPLY_RETRIES,
             )
             reply = reply[:DISCORD_MAX_LENGTH]
 
