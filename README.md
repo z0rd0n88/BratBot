@@ -544,7 +544,7 @@ OLLAMA_NUM_CTX=32768
 | `LLM_QUEUE_MAX_DEPTH` | No | `5` | Max queued LLM requests per channel |
 | `LLM_TIMEOUT_SECONDS` | No | `30` | LLM request timeout in seconds |
 | `OLLAMA_BASE_URL` | No | `http://ollama:11434` | Ollama API URL (used by BratBotModel) |
-| `OLLAMA_MODEL` | No | `qwen3-14b` | Ollama model name |
+| `OLLAMA_MODEL` | No | `mannix/llama3.1-8b-abliterated:q8_0` | Ollama model name |
 | `LLM_MODELS_DIR` | No | — | Host path to GGUF model files (mounted into Ollama at `/models`) |
 
 ### BonnieBot (`.env`)

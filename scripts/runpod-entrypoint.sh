@@ -5,7 +5,7 @@ set -euo pipefail
 # Starts supervisord, waits for Ollama, and loads the model.
 # ─────────────────────────────────────────────────────────────────────
 
-OLLAMA_MODEL="${OLLAMA_MODEL:-qwen3-14b}"
+OLLAMA_MODEL="${OLLAMA_MODEL:-mannix/llama3.1-8b-abliterated:q8_0}"
 OLLAMA_BASE_URL="${OLLAMA_BASE_URL:-http://localhost:11434}"
 WORKSPACE="${WORKSPACE:-/workspace}"
 GGUF_PATH="${GGUF_PATH:-}"

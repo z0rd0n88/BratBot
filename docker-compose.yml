@@ -6,7 +6,7 @@ services:
     environment:
       LLM_API_URL: http://localhost:8000
       OLLAMA_BASE_URL: http://ollama:11434
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3-14b}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-mannix/llama3.1-8b-abliterated:q8_0}
       REDIS_URL: redis://redis:6379/0
     depends_on:
       redis:
@@ -25,7 +25,7 @@ services:
       BONNIEBOT_LLM_API_URL: http://localhost:8000
       BONNIEBOT_REDIS_URL: redis://redis:6379/0
       OLLAMA_BASE_URL: http://ollama:11434
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3-14b}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-mannix/llama3.1-8b-abliterated:q8_0}
     command: ["python", "-m", "bonniebot"]
     depends_on:
       redis:

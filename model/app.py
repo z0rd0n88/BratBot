@@ -26,7 +26,7 @@ logger = logging.getLogger("bratbot-model")
 # Configuration
 # ---------------------------------------------------------------------------
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://ollama:11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen3-14b")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "mannix/llama3.1-8b-abliterated:q8_0")
 OLLAMA_TEMPERATURE = float(os.environ.get("OLLAMA_TEMPERATURE", "0.9"))
 OLLAMA_NUM_PREDICT = int(os.environ.get("OLLAMA_NUM_PREDICT", "-1"))
 OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "32768"))
