@@ -13,6 +13,7 @@ from bratbot.personality import BRAT_PERSONALITY, Personality
 from bratbot.services.age_verification_store import AgeVerificationStore
 from bratbot.services.intensity_store import IntensityStore
 from bratbot.services.llm_client import LLMClient
+from bratbot.services.pronoun_store import PronounStore
 from bratbot.services.rate_limiter import RateLimiter
 from bratbot.services.request_queue import RequestQueue
 from bratbot.services.verbosity_store import VerbosityStore
@@ -34,6 +35,7 @@ class BratBot(commands.Bot):
     intensity_store: IntensityStore
     verbosity_store: VerbosityStore
     age_verification_store: AgeVerificationStore
+    pronoun_store: PronounStore
 
     def __init__(self) -> None:
         intents = discord.Intents.default()
@@ -77,6 +79,7 @@ class BratBot(commands.Bot):
         self.intensity_store = IntensityStore(redis)
         self.verbosity_store = VerbosityStore(redis)
         self.age_verification_store = AgeVerificationStore(redis)
+        self.pronoun_store = PronounStore(redis)
 
         # Auto-discover and load all extensions
         await self._load_extensions()

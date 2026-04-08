@@ -13,6 +13,7 @@ from bonniebot.personality import BONNIE_PERSONALITY
 from bratbot.personality import Personality
 from bratbot.services.intensity_store import IntensityStore
 from bratbot.services.llm_client import LLMClient
+from bratbot.services.pronoun_store import PronounStore
 from bratbot.services.rate_limiter import RateLimiter
 from bratbot.services.request_queue import RequestQueue
 from bratbot.services.verbosity_store import VerbosityStore
@@ -32,6 +33,7 @@ class BonnieBot(commands.Bot):
     rate_limiter: RateLimiter
     intensity_store: IntensityStore
     verbosity_store: VerbosityStore
+    pronoun_store: PronounStore
 
     def __init__(self) -> None:
         intents = discord.Intents.default()
@@ -68,6 +70,7 @@ class BonnieBot(commands.Bot):
         self.rate_limiter = RateLimiter(redis)
         self.intensity_store = IntensityStore(redis)
         self.verbosity_store = VerbosityStore(redis)
+        self.pronoun_store = PronounStore(redis)
 
         # Auto-discover and load all extensions
         await self._load_extensions()
