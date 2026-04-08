@@ -66,7 +66,7 @@ class MessageCog(commands.Cog):
         # Build LLM coroutine and enqueue
         async def _call_llm() -> None:
             response = await self.bot.llm_client.chat(content)
-            await message.reply(response["reply"])
+            await message.reply(f"> {content}\n\n{response['reply']}")
 
         try:
             await self.bot.request_queue.enqueue(message.channel, _call_llm())

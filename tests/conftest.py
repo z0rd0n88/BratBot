@@ -18,6 +18,10 @@ from tests.discord_keys import verify_hex  # noqa: E402
 os.environ["DISCORD_PUBLIC_KEY"] = verify_hex
 os.environ.setdefault("TERMS_URL", "http://test")
 os.environ.setdefault("PRIVACY_URL", "http://test")
+os.environ.setdefault("DISCORD_BOT_TOKEN", "test-token")
+os.environ.setdefault("DISCORD_CLIENT_ID", "123456789")
+os.environ.setdefault("LLM_API_URL", "http://test:8000")
+os.environ.setdefault("REDIS_URL", "redis://localhost:6379")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "model"))
 

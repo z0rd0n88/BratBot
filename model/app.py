@@ -38,6 +38,12 @@ _DISCORD_LENGTH_INSTRUCTION = (
     "This is a hard platform limit. Do not exceed it under any circumstances.]"
 )
 
+_VERBOSITY_INSTRUCTIONS: dict[int, str] = {
+    1: "\n\n[IMPORTANT: Keep your response very short — one or two sentences maximum.]",
+    2: "",
+    3: "\n\n[IMPORTANT: Give a thorough, detailed response. Be comprehensive.]",
+}
+
 # ---------------------------------------------------------------------------
 # Per-request mood injection — forces structural variety across requests
 # ---------------------------------------------------------------------------
@@ -146,15 +152,18 @@ app.include_router(interactions_router)
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
     brat_level: int = Field(default=3, ge=1, le=3)
+    verbosity: int = Field(default=2, ge=1, le=3)
 
 
 class CamiChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
+    verbosity: int = Field(default=2, ge=1, le=3)
 
 
 class BonnieChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
     level: int = Field(default=3, ge=1, le=3)
+    verbosity: int = Field(default=2, ge=1, le=3)
 
 
 # ---------------------------------------------------------------------------
@@ -255,7 +264,7 @@ async def bratchat(request: ChatRequest):
         "model": OLLAMA_MODEL,
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": request.message + _DISCORD_LENGTH_INSTRUCTION},
+            {"role": "user", "content": request.message + _DISCORD_LENGTH_INSTRUCTION + _VERBOSITY_INSTRUCTIONS[request.verbosity]},
         ],
         "stream": False,
         "options": {
@@ -333,7 +342,7 @@ async def camichat(request: CamiChatRequest):
         "model": OLLAMA_MODEL,
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": request.message + _DISCORD_LENGTH_INSTRUCTION},
+            {"role": "user", "content": request.message + _DISCORD_LENGTH_INSTRUCTION + _VERBOSITY_INSTRUCTIONS[request.verbosity]},
         ],
         "stream": False,
         "options": {
@@ -411,7 +420,7 @@ async def bonniebot(request: BonnieChatRequest):
         "model": OLLAMA_MODEL,
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": request.message + _DISCORD_LENGTH_INSTRUCTION},
+            {"role": "user", "content": request.message + _DISCORD_LENGTH_INSTRUCTION + _VERBOSITY_INSTRUCTIONS[request.verbosity]},
         ],
         "stream": False,
         "options": {

@@ -65,7 +65,7 @@ class CamiCog(commands.Cog):
 
             async def _call_llm() -> None:
                 response = await self.bot.cami_llm_client.chat(message, verbosity=user_verbosity)
-                await active_interaction.followup.send(response["reply"])
+                await active_interaction.followup.send(f"> {message}\n\n{response['reply']}")
 
             try:
                 if active_interaction.channel is not None:

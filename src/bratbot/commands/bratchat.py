@@ -72,7 +72,7 @@ class BratCog(commands.Cog):
                 response = await self.bot.llm_client.chat(
                     message, brat_level=user_intensity, verbosity=user_verbosity
                 )
-                await active_interaction.followup.send(response["reply"])
+                await active_interaction.followup.send(f"> {message}\n\n{response['reply']}")
 
             try:
                 if active_interaction.channel is not None:

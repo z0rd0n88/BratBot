@@ -69,7 +69,7 @@ class BonnieCog(commands.Cog):
             response = await self.bot.llm_client.chat(
                 message, brat_level=user_intensity, verbosity=user_verbosity
             )
-            await interaction.followup.send(response["reply"])
+            await interaction.followup.send(f"> {message}\n\n{response['reply']}")
 
         try:
             if interaction.channel is not None:
