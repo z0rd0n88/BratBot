@@ -1,0 +1,75 @@
+"""The /pronoun slash command — set or view pronoun preference."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import discord
+from discord import app_commands
+from discord.ext import commands
+
+from bratbot.utils.age_gate import _reply, check_age_verified
+from bratbot.utils.logger import get_logger
+
+if TYPE_CHECKING:
+    from bratbot.bot import BratBot
+
+log = get_logger(__name__)
+
+_PRONOUN_CHOICES = [
+    app_commands.Choice(name="male (he/him)", value="male"),
+    app_commands.Choice(name="female (she/her)", value="female"),
+    app_commands.Choice(name="other (they/them)", value="other"),
+]
+
+
+class PronounCog(commands.Cog):
+    """Slash command for managing pronoun preference."""
+
+    def __init__(self, bot: BratBot) -> None:
+        self.bot = bot
+
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @app_commands.command(name="pronoun", description="Set or view your pronoun preference")
+    @app_commands.describe(pronoun="Your pronoun preference (affects how Cami addresses you)")
+    @app_commands.choices(pronoun=_PRONOUN_CHOICES)
+    async def pronoun(
+        self,
+        interaction: discord.Interaction,
+        pronoun: app_commands.Choice[str] | None = None,
+    ) -> None:
+        async def _run(active_interaction: discord.Interaction) -> None:
+            user_id = active_interaction.user.id
+
+            if pronoun is not None:
+                await self.bot.pronoun_store.set_pronoun(user_id, pronoun.value)
+                log.info("pronoun_set", user_id=user_id, pronoun=pronoun.value)
+                await _reply(
+                    active_interaction,
+                    f"\u2713 Your pronoun preference is now **{pronoun.value}**. "
+                    f"Cami will address you accordingly.",
+                )
+            else:
+                was_explicitly_set = await self.bot.pronoun_store.was_set(user_id)
+                log.info("pronoun_get", user_id=user_id, was_set=was_explicitly_set)
+                if was_explicitly_set:
+                    current = await self.bot.pronoun_store.get_pronoun(user_id)
+                    await _reply(
+                        active_interaction,
+                        f"Your current pronoun preference is **{current}**.",
+                    )
+                else:
+                    await _reply(
+                        active_interaction,
+                        "You haven't set a pronoun preference yet. "
+                        "Use `/pronoun` to pick one, or Cami will default to male address.",
+                    )
+
+        if not await check_age_verified(interaction, self.bot, _run):
+            return
+        await _run(interaction)
+
+
+async def setup(bot: commands.Bot) -> None:
+    await bot.add_cog(PronounCog(bot))  # type: ignore[arg-type]
