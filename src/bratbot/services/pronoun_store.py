@@ -44,4 +44,4 @@ class PronounStore:
 
     async def was_set(self, user_id: int) -> bool:
         """Check if user has explicitly set their pronoun preference."""
-        return await self.redis.exists(f"user:{user_id}:pronoun")
+        return bool(await self.redis.exists(f"user:{user_id}:pronoun"))
