@@ -24,6 +24,9 @@ alembic/versions/*.pyc
 # Personality prompt files (contain sensitive content)
 model/prompts/*.txt
 !model/prompts/*.txt.example
+# Encrypted ciphertext blobs are committed (this is the deployment artifact).
+# The model server decrypts them at startup using PROMPTS_ENCRYPTION_KEY.
+!model/prompts/*.txt.enc
 
 # Large model files
 *.gguf

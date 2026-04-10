@@ -117,9 +117,14 @@ LLM_API_URL=http://localhost:8000
 
 # Redis (default matches docker-compose)
 REDIS_URL=redis://redis:6379/0
+
+# Personality prompts encryption key (see Personality Prompts section below)
+PROMPTS_ENCRYPTION_KEY=your-base64-key-here
 ```
 
 > **Note:** `LLM_API_URL` is `http://localhost:8000` because BratBot and BratBotModel run in the same container. When running via Docker Compose, use `redis` as the hostname (service name).
+
+> **Personality prompts:** The model server expects a `PROMPTS_ENCRYPTION_KEY` to decrypt the committed `model/prompts/*.txt.enc` files at startup. See [Personality Prompts](#personality-prompts) below for the keygen + encrypt workflow before running the bot.
 
 ### 2. Set up the LLM model
 
@@ -180,176 +185,101 @@ docker compose up --build
 
 ---
 
-## Deploying to RunPod
+## Personality Prompts
 
-RunPod GPU Pods provide a persistent VM-like environment with dedicated GPU — ideal for running the bot 24/7 with Ollama inference.
+Each personality (BratBot level 3, Cami, Bonnie) has its full system prompt
+defined in a `model/prompts/*.txt` file. These contain custom voice content
+that's not appropriate for public git history, so the plaintext files are
+**gitignored**. To make the prompts survive a fresh clone or pod rebuild
+without exposing them, the repo commits **encrypted** `*.txt.enc` files
+(base64-encoded PyNaCl SecretBox ciphertext). The model server decrypts
+them at startup using `PROMPTS_ENCRYPTION_KEY` from the environment.
 
-### Architecture
+### First-time setup
 
-The pod runs the bot, model API, and Ollama in a single stateless container. Redis is hosted externally (Upstash free tier) for rate limiting, so the pod can be stopped or replaced freely.
+1. **Generate an encryption key** (one-time, store it safely):
 
-```
-RunPod GPU Pod (stateless)
-├── supervisord
-│   ├── ollama serve          (GPU, port 11434)
-│   ├── model (uvicorn)       (port 8000)
-│   ├── bot (bratbot)         (outbound WebSocket)
-│   └── bonniebot             (outbound WebSocket)
-└── /workspace (Network Volume)
-    ├── models/Qwen_Qwen3-14B-Q4_K_M.gguf
-    └── ollama/
+   ```bash
+   python scripts/encrypt-prompts.py keygen
+   ```
 
-External Services:
-└── Upstash Redis (free tier)
-```
+   Add the printed key to your local `.env` as `PROMPTS_ENCRYPTION_KEY=...`
+   **and** to the same env var in your RunPod pod template. Save it in a
+   password manager — losing this key means losing access to the committed
+   ciphertext.
 
-### GPU Recommendations
+2. **Create your local plaintext prompts** by copying the skeletons:
 
-| GPU | VRAM | ~Cost/hr | ~Cost/mo | Notes |
-|---|---|---|---|---|
-| RTX A4000 | 16GB | $0.20 | $144 | Cheapest viable for 14B Q4_K_M |
-| L4 | 24GB | $0.28 | $202 | Good balance of cost and headroom |
-| RTX 4090 | 24GB | $0.44 | $317 | Fastest inference |
+   ```bash
+   cp model/prompts/brat_level3.txt.example model/prompts/brat_level3.txt
+   cp model/prompts/cami.txt.example       model/prompts/cami.txt
+   cp model/prompts/bonnie.txt.example     model/prompts/bonnie.txt
+   ```
 
-### Prerequisites
+   Then edit each `.txt` file with your custom personality voice content.
 
-1. **Upstash Redis** — Create a free account at [upstash.com](https://upstash.com), create a Redis database. Note the `rediss://` connection string (TLS).
-2. **RunPod account** with a container registry (Docker Hub or GHCR) for pushing images.
+3. **Encrypt the plaintext into committed `.txt.enc` files**:
 
-### Step 1: Build and push the RunPod image
+   ```bash
+   python scripts/encrypt-prompts.py encrypt
+   ```
 
-```bash
-# Configure your registry (one-time)
-cp .env.runpod.example .env.runpod
-# Edit .env.runpod with your REGISTRY_IMAGE and RUNPOD_POD_ID
+   This produces `model/prompts/{brat_level3,cami,bonnie}.txt.enc`. Commit
+   the `.txt.enc` files (NOT the `.txt` files — they're gitignored).
 
-# Build and push
-./scripts/deploy-runpod.sh build
-./scripts/deploy-runpod.sh push
-```
-
-### Step 2: Set up RunPod Network Volume
-
-1. Create a **Network Volume** (15 GB) in your preferred RunPod region.
-2. This volume stores the Ollama model cache at `/workspace/ollama/`. Models pulled from the Ollama registry are cached here automatically — no manual upload needed.
-3. For custom GGUF files, spin up a temporary CPU pod and upload to `/workspace/models/`.
-
-**Storage layout:**
-```
-Network Volume (/workspace):
-├── ollama/models/          ← Ollama model cache (persistent across restarts)
-└── models/                 ← Custom GGUF files (optional)
-```
-
-On first boot, the entrypoint pulls the model specified by `OLLAMA_MODEL` (~2–10 min depending on size). Subsequent restarts load from cache in ~30 seconds.
-
-### Step 3: Create Pod Template
-
-In the RunPod console, create a Pod Template:
-
-- **Image:** `ghcr.io/<your-org>/bratbot:runpod-latest`
-- **GPU:** RTX 3070 for small models, RTX A4000 for 14B (see table below)
-- **Container Disk:** 5 GB (models live on network volume, container image is ~900 MB)
-- **Volume:** Attach your network volume at `/workspace`
-- **Exposed Ports:** `8000/http` (Discord interactions webhook)
-- **Environment Variables:**
-
-| Variable | Value |
-|---|---|
-| `DISCORD_BOT_TOKEN` | Your Discord bot token |
-| `DISCORD_CLIENT_ID` | Your Discord client ID |
-| `DISCORD_PUBLIC_KEY` | Your Discord public key |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` |
-| `OLLAMA_MODEL` | `qwen3:8b` (or any model from the table below) |
-| `LLM_API_URL` | `http://localhost:8000` |
-| `REDIS_URL` | `rediss://default:xxx@xxx.upstash.io:6379` |
-
-### Step 4: Deploy and verify
+### Editing prompts
 
 ```bash
-# Check everything is running
-./scripts/deploy-runpod.sh status
+# 1. Edit the plaintext (gitignored, local only)
+$EDITOR model/prompts/bonnie.txt
 
-# Or SSH in manually
-./scripts/deploy-runpod.sh ssh
+# 2. Re-encrypt into the committed .txt.enc
+python scripts/encrypt-prompts.py encrypt
+
+# 3. Commit and push the updated .enc file
+git add model/prompts/bonnie.txt.enc
+git commit -m "tweak bonnie's voice"
+git push
+
+# 4. Either rebuild the image or hot-fix the running pod
 ```
 
-### Verify deployment
+The `encrypt` subcommand is **idempotent**: running it without changing
+any plaintext is a no-op (the ciphertext doesn't change because the
+existing file already decrypts to the same content).
+
+### Fresh-clone recovery
+
+After cloning the repo on a new machine:
 
 ```bash
-# Check all services are running
-./scripts/deploy-runpod.sh status
+cp .env.example .env
+$EDITOR .env  # paste PROMPTS_ENCRYPTION_KEY from your password manager
 
-# Verify model is loaded
-./scripts/deploy-runpod.sh ssh
-ollama list
-curl http://localhost:8000/health
+# Materialize plaintext .txt files for editing (optional)
+python scripts/encrypt-prompts.py decrypt
 ```
 
-### Switching models
+You don't actually need to run `decrypt` to start the bot — the model
+server will decrypt the committed `.txt.enc` files at boot directly into
+memory. Only run `decrypt` if you want to edit the plaintext locally.
 
-Switch models on a running pod without rebuilding or restarting the pod:
+### Optional: drift-check pre-commit hook
+
+To prevent accidentally committing a stale `.txt.enc` after editing the
+plaintext, install the optional pre-commit hook:
 
 ```bash
-# See available models and recommendations
-./scripts/deploy-runpod.sh switch-model
-
-# Pull a new model from the Ollama registry and activate it
-./scripts/deploy-runpod.sh switch-model qwen3:8b
-
-# Or import a custom GGUF from the network volume
-./scripts/deploy-runpod.sh switch-model my-model --gguf /workspace/models/my-model.gguf
-
-# Check what's loaded
-./scripts/deploy-runpod.sh models
+cp scripts/pre-commit-encrypt-check.sh .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
 ```
 
-> **Note:** `switch-model` activates the model immediately but doesn't persist across pod restarts. Update `OLLAMA_MODEL` in your pod template to make it permanent.
+The hook calls `scripts/encrypt-prompts.py verify` on every staged
+`.txt.enc` file and aborts the commit if it doesn't match its sibling
+`.txt` working copy. Requires `PROMPTS_ENCRYPTION_KEY` in your shell env.
 
-### Recommended models by cost
-
-| Model | VRAM | Quality | Min GPU | ~Cost/mo |
-|---|---|---|---|---|
-| `llama3.2:3b` | ~2 GB | Decent | RTX 3070 | ~$72 |
-| `qwen3:4b` | ~3 GB | Good | RTX 3070 | ~$72 |
-| `phi4-mini` | ~3 GB | Good | RTX 3070 | ~$72 |
-| `gemma3:4b` | ~3 GB | Good | RTX 3070 | ~$72 |
-| `qwen3:8b` | ~5 GB | Great | RTX 3070 | ~$72 |
-| `gemma3:12b` | ~8 GB | Excellent | RTX A4000 | ~$144 |
-| `qwen3:14b` | ~9 GB | Excellent | RTX A4000 | ~$144 |
-
-> **Tip:** Start with `qwen3:8b` on an RTX 3070 (~$72/mo) for the best balance of quality and cost. The bot's personality comes from the system prompt, so even smaller models produce entertaining bratty responses.
-
-### Updating code
-
-For pure code changes (no new dependencies), use `hot-update` — it syncs source files
-over SCP and restarts only the Python services. Ollama stays running with the model
-loaded in VRAM, so there's no model reload delay:
-
-```bash
-./scripts/deploy-runpod.sh hot-update
-```
-
-For changes that add or remove Python dependencies (i.e., `pyproject.toml` or
-`model/requirements.txt` changed), do a full deploy:
-
-```bash
-./scripts/deploy-runpod.sh update
-```
-
-### Deploy script reference
-
-```bash
-./scripts/deploy-runpod.sh build           # Build Docker image
-./scripts/deploy-runpod.sh push            # Push to registry
-./scripts/deploy-runpod.sh hot-update      # Sync code + restart (Ollama stays up)
-./scripts/deploy-runpod.sh update          # Build + push + restart (full deploy)
-./scripts/deploy-runpod.sh switch-model    # Change active model
-./scripts/deploy-runpod.sh status          # Check services + health
-./scripts/deploy-runpod.sh ssh             # SSH into the pod
-./scripts/deploy-runpod.sh logs [service]  # Tail logs
-./scripts/deploy-runpod.sh models          # List loaded models
-```
+The same drift check also runs in `./scripts/deploy-runpod.sh build` so
+the build aborts before producing an image with stale prompts.
 
 ---
 
@@ -617,9 +547,6 @@ Try a smaller model or more aggressive quantization (e.g., `qwen3:8b` instead of
 
 **"Model not found" in health check**
 Ensure the model name in `OLLAMA_MODEL` matches what's in Ollama. Run `docker compose exec ollama ollama list` to see available models.
-
-**Models not persisting after RunPod pod restart**
-Verify the network volume is attached at `/workspace`: `df /workspace`. If empty, the volume wasn't mounted — recreate the pod with the volume properly attached. Model files should exist at `/workspace/ollama/models/`.
 
 ---
 

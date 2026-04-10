@@ -175,6 +175,57 @@ pod_scp() {
 # ─── Commands ────────────────────────────────────────────────────────
 
 cmd_build() {
+    # Drift check: bail before building if any committed model/prompts/*.txt.enc
+    # is out of sync with the local plaintext .txt working copy. Requires a
+    # Python interpreter with PyNaCl available — tries several in order so the
+    # check works from WSL bash, git-bash, or a native Linux shell. Skips
+    # gracefully (with a warning) if neither PROMPTS_ENCRYPTION_KEY nor a
+    # PyNaCl-capable Python is available — the optional pre-commit hook is the
+    # belt-and-suspenders backup for this case.
+    if [ -n "${PROMPTS_ENCRYPTION_KEY:-}" ]; then
+        local py=""
+        for candidate in \
+            "${PROJECT_DIR}/.venv/Scripts/python.exe" \
+            "${PROJECT_DIR}/.venv/bin/python" \
+            python3 \
+            python; do
+            if [ -n "$candidate" ] && "$candidate" -c "import nacl.secret" 2>/dev/null; then
+                py="$candidate"
+                break
+            fi
+        done
+
+        if [ -z "$py" ]; then
+            warn "No Python with PyNaCl found — skipping prompt drift check."
+            warn "Install the project deps (uv sync) or use the pre-commit hook for safety."
+        else
+            info "Verifying model/prompts/*.txt.enc are in sync with .txt (using $py)..."
+            local drift=0
+            for enc in "${PROJECT_DIR}/model/prompts/"*.txt.enc; do
+                [ -f "$enc" ] || continue
+                local txt="${enc%.enc}"
+                if [ ! -f "$txt" ]; then
+                    # No local plaintext to compare against — fine on a builder
+                    # machine that's not a developer workstation.
+                    continue
+                fi
+                if ! "$py" "${PROJECT_DIR}/scripts/encrypt-prompts.py" verify "$enc" >/dev/null; then
+                    drift=1
+                fi
+            done
+            if [ "$drift" -ne 0 ]; then
+                echo ""
+                echo "ERROR: encrypted prompts are out of sync with local plaintext." >&2
+                echo "Re-encrypt with: python scripts/encrypt-prompts.py encrypt" >&2
+                echo "Then commit the updated .txt.enc file(s) and re-run the build." >&2
+                exit 1
+            fi
+            ok "Encrypted prompts verified in sync."
+        fi
+    else
+        warn "PROMPTS_ENCRYPTION_KEY not set — skipping prompt drift check."
+    fi
+
     info "Building ${FULL_IMAGE}..."
     docker build \
         -f "${PROJECT_DIR}/Dockerfile.runpod" \

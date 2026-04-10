@@ -22,6 +22,10 @@ os.environ.setdefault("DISCORD_BOT_TOKEN", "test-token")
 os.environ.setdefault("DISCORD_CLIENT_ID", "123456789")
 os.environ.setdefault("LLM_API_URL", "http://test:8000")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379")
+# Personality prompts: skip real decryption in tests so the model server's
+# lifespan startup hook doesn't need a real PROMPTS_ENCRYPTION_KEY. The
+# crypto path is tested in tests/test_prompt_loader.py with a fresh test key.
+os.environ.setdefault("BRATBOT_TEST_MODE", "1")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "model"))
 

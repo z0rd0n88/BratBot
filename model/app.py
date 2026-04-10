@@ -1,6 +1,8 @@
 """BratBotModel — personality API layer between BratBot and Ollama."""
 
 import asyncio
+import base64
+import binascii
 import logging
 import os
 import random
@@ -11,6 +13,8 @@ from pathlib import Path
 
 import httpx
 from fastapi import FastAPI, HTTPException
+from nacl.exceptions import CryptoError
+from nacl.secret import SecretBox
 from pydantic import BaseModel, Field
 
 # ---------------------------------------------------------------------------
@@ -132,6 +136,20 @@ async def lifespan(app: FastAPI):
     else:
         asyncio.create_task(_do_warmup(client))
 
+    # Load and validate all personality prompts at startup so misconfiguration
+    # crashes loudly here instead of at first user message. Logs names + lengths
+    # only — never the prompt content or the encryption key.
+    try:
+        loaded = {name: len(_load_prompt(name)) for name in ("brat_level3", "cami", "bonnie")}
+        logger.info(
+            "Loaded %d personality prompts: %s",
+            len(loaded),
+            ", ".join(f"{name}={chars} chars" for name, chars in loaded.items()),
+        )
+    except RuntimeError as e:
+        logger.error("Failed to load personality prompts: %s", e)
+        raise
+
     yield
 
     await client.aclose()
@@ -171,16 +189,82 @@ class BonnieChatRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Personality prompts
 # ---------------------------------------------------------------------------
+# Prompts live in model/prompts/<name>.txt (gitignored, local plaintext) or
+# model/prompts/<name>.txt.enc (committed, base64-encoded SecretBox ciphertext).
+# The loader prefers plaintext when present (local-dev fast path) and falls
+# back to decrypting the .enc file using PROMPTS_ENCRYPTION_KEY from env.
+# Results are cached in _PROMPT_CACHE so each prompt is read at most once.
+# Startup validation in the lifespan hook below loads all three prompts at
+# boot, so misconfiguration crashes loudly instead of failing at first request.
 PROMPT_DIR = Path(__file__).parent / "prompts"
+PROMPT_KEY_ENV_VAR = "PROMPTS_ENCRYPTION_KEY"
+_PROMPT_CACHE: dict[str, str] = {}
+
+
+def _load_prompt(name: str) -> str:
+    """Load a personality prompt by name, decrypting from .enc if needed."""
+    if name in _PROMPT_CACHE:
+        return _PROMPT_CACHE[name]
+
+    if os.environ.get("BRATBOT_TEST_MODE") == "1":
+        result = f"[test fixture: {name} prompt]"
+        _PROMPT_CACHE[name] = result
+        return result
+
+    txt_path = PROMPT_DIR / f"{name}.txt"
+    enc_path = PROMPT_DIR / f"{name}.txt.enc"
+
+    # Local-dev fast path: prefer plaintext if it exists.
+    if txt_path.exists():
+        result = txt_path.read_text(encoding="utf-8").strip()
+        _PROMPT_CACHE[name] = result
+        return result
+
+    if not enc_path.exists():
+        raise RuntimeError(
+            f"No prompt file found for '{name}': neither model/prompts/{name}.txt "
+            f"nor model/prompts/{name}.txt.enc exists. See .env.example for setup."
+        )
+
+    key_str = os.environ.get(PROMPT_KEY_ENV_VAR)
+    if not key_str:
+        raise RuntimeError(
+            f"{PROMPT_KEY_ENV_VAR} env var is not set and no plaintext "
+            f"model/prompts/{name}.txt fallback file exists. See .env.example."
+        )
+
+    try:
+        key_bytes = base64.urlsafe_b64decode(key_str.strip())
+    except (binascii.Error, ValueError) as e:
+        raise RuntimeError(f"{PROMPT_KEY_ENV_VAR} is not a valid base64-encoded key: {e}") from None
+    if len(key_bytes) != SecretBox.KEY_SIZE:
+        raise RuntimeError(
+            f"{PROMPT_KEY_ENV_VAR} is not a valid base64-encoded "
+            f"{SecretBox.KEY_SIZE}-byte key (decoded to {len(key_bytes)} bytes)"
+        )
+
+    try:
+        ciphertext = base64.b64decode(enc_path.read_text(encoding="ascii").strip(), validate=True)
+        plaintext = SecretBox(key_bytes).decrypt(ciphertext).decode("utf-8")
+    except CryptoError as e:
+        raise RuntimeError(
+            f"Failed to decrypt model/prompts/{name}.txt.enc — check "
+            f"{PROMPT_KEY_ENV_VAR} env var. Original error: {e}"
+        ) from None
+    except (binascii.Error, ValueError) as e:
+        raise RuntimeError(
+            f"model/prompts/{name}.txt.enc is not valid base64 ciphertext: {e}"
+        ) from None
+
+    result = plaintext.strip()
+    _PROMPT_CACHE[name] = result
+    return result
 
 
 def get_system_prompt(level: int) -> str:
     """Return the system prompt for the given brattiness level."""
     if level == 3:
-        path = PROMPT_DIR / "brat_level3.txt"
-        if not path.exists():
-            raise RuntimeError("Brat level 3 prompt file not found: model/prompts/brat_level3.txt")
-        return path.read_text(encoding="utf-8").strip()
+        return _load_prompt("brat_level3")
 
     prompts = {
         1: (
@@ -199,19 +283,13 @@ def get_system_prompt(level: int) -> str:
 
 
 def get_cami_system_prompt() -> str:
-    """Return the system prompt for Cami's personality, loaded from file."""
-    path = PROMPT_DIR / "cami.txt"
-    if not path.exists():
-        raise RuntimeError("Cami prompt file not found: model/prompts/cami.txt")
-    return path.read_text(encoding="utf-8").strip()
+    """Return the system prompt for Cami's personality."""
+    return _load_prompt("cami")
 
 
 def get_bonnie_system_prompt() -> str:
-    """Return the system prompt for Bonnie's personality, loaded from file."""
-    path = PROMPT_DIR / "bonnie.txt"
-    if not path.exists():
-        raise RuntimeError("Bonnie prompt file not found: model/prompts/bonnie.txt")
-    return path.read_text(encoding="utf-8").strip()
+    """Return the system prompt for Bonnie's personality."""
+    return _load_prompt("bonnie")
 
 
 def _pronoun_suffix(pronoun: str, female_term: str, male_term: str) -> str:
