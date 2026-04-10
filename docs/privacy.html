@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BratBot - Privacy Policy</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;line-height:1.7;color:#333}
+h1{color:#111;margin-bottom:0.25rem}
+h2{color:#222;margin-top:2rem;border-bottom:1px solid #ddd;padding-bottom:0.25rem}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:0.9em}
+th,td{border:1px solid #ccc;padding:0.5rem 0.75rem;text-align:left}
+th{background:#f5f5f5}
+.badge{display:inline-block;padding:0.15em 0.5em;border-radius:3px;font-size:0.8em;font-weight:600}
+.perm{background:#ffeaea;color:#c0392b}
+.ephemeral{background:#eafff0;color:#1e8449}
+.session{background:#eaf3ff;color:#1a5276}
+p.updated{color:#666;font-size:0.9em}
+</style>
+</head>
+<body>
+<h1>Privacy Policy</h1>
+<p class="updated"><strong>Effective Date:</strong> April 9, 2026</p>
+
+<p>This policy explains what information BratBot collects when you interact with it on Discord, how that information is used, and how long it is kept.</p>
+
+<h2>1. What We Collect</h2>
+
+<p>BratBot collects the minimum information needed to operate. The table below lists every category of data, where it is stored, how long it is kept, and why.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Data</th>
+      <th>Storage</th>
+      <th>Retention</th>
+      <th>Purpose</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Discord User ID</td>
+      <td>Redis</td>
+      <td><span class="badge perm">Permanent</span></td>
+      <td>Key for storing your preferences (intensity, verbosity, pronouns, age verification)</td>
+    </tr>
+    <tr>
+      <td>Intensity preference (1&ndash;3)</td>
+      <td>Redis</td>
+      <td><span class="badge perm">Permanent</span></td>
+      <td>Controls how strongly each bot persona responds</td>
+    </tr>
+    <tr>
+      <td>Verbosity preference (1&ndash;3)</td>
+      <td>Redis</td>
+      <td><span class="badge perm">Permanent</span></td>
+      <td>Controls response length</td>
+    </tr>
+    <tr>
+      <td>Pronoun preference</td>
+      <td>Redis</td>
+      <td><span class="badge perm">Permanent</span></td>
+      <td>Used by the language model to address you correctly</td>
+    </tr>
+    <tr>
+      <td>Age verification flag</td>
+      <td>Redis</td>
+      <td><span class="badge perm">Permanent</span></td>
+      <td>Records that you accepted our Terms of Service</td>
+    </tr>
+    <tr>
+      <td>Channel ID</td>
+      <td>Redis</td>
+      <td><span class="badge ephemeral">60 seconds</span></td>
+      <td>Per-channel rate limiting</td>
+    </tr>
+    <tr>
+      <td>Guild ID</td>
+      <td>Redis</td>
+      <td><span class="badge ephemeral">5 seconds</span></td>
+      <td>Message deduplication on reconnect</td>
+    </tr>
+    <tr>
+      <td>Message content</td>
+      <td>In-memory only</td>
+      <td><span class="badge ephemeral">Discarded after response</span></td>
+      <td>Sent to a locally-hosted language model to generate a reply</td>
+    </tr>
+    <tr>
+      <td>Message IDs</td>
+      <td>In-memory deque (max 1,000)</td>
+      <td><span class="badge session">Session only</span></td>
+      <td>Prevents duplicate responses after Discord reconnections</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>Permanent</strong> means no automatic expiry &mdash; data remains in Redis until you request deletion (see Section 5).</p>
+
+<h2>2. How We Use Your Data</h2>
+
+<ul>
+  <li>Message content is sent to a <strong>self-hosted</strong> language model (Ollama) running on our own servers. It is never forwarded to any third-party AI provider (e.g., OpenAI, Anthropic, Google).</li>
+  <li>Preference data is read from Redis at the start of each interaction to personalise the bot&rsquo;s response.</li>
+  <li>We do not use your data for advertising, analytics, or any purpose beyond operating the bot.</li>
+  <li>We do not sell or share your data with any third party.</li>
+</ul>
+
+<h2>3. Data Retention</h2>
+
+<p>Message content is never written to disk and is discarded immediately after a response is generated. Preference data and your Discord User ID are stored in Redis with no expiry and persist until you request deletion. Temporary rate-limiting and deduplication data expires automatically within seconds.</p>
+
+<h2>4. Third Parties</h2>
+
+<ul>
+  <li><strong>Discord</strong> &mdash; messages pass through Discord&rsquo;s infrastructure before reaching BratBot. Discord&rsquo;s own <a href="https://discord.com/privacy">Privacy Policy</a> governs their handling of message data.</li>
+  <li><strong>Ollama</strong> &mdash; self-hosted inference engine running on our servers. Message content stays within our infrastructure.</li>
+  <li><strong>Redis / Upstash Redis</strong> &mdash; used for preference storage and rate limiting. On cloud deployments, Upstash Redis is used within our designated region.</li>
+</ul>
+
+<h2>5. Your Rights and Data Deletion</h2>
+
+<p>You may request deletion of all data associated with your Discord User ID at any time:</p>
+<ol>
+  <li>Open an issue on our <a href="https://github.com/z0rd0n88/BratBot/issues">GitHub repository</a>.</li>
+  <li>Title it <strong>&ldquo;Data Deletion Request&rdquo;</strong> and include your Discord User ID.</li>
+  <li>We will delete all Redis keys associated with your User ID and confirm in the issue.</li>
+</ol>
+
+<p>If you are in the European Economic Area (EEA), United Kingdom, or California, you may also have rights to access, correct, or port your data under GDPR, UK GDPR, or CCPA/CPRA. Use the same GitHub issue process to make such a request.</p>
+
+<h2>6. Security</h2>
+
+<p>All Discord interaction webhooks are verified using Ed25519 signatures before processing. Message content is discarded immediately after a response is generated. Bot tokens and Redis credentials are stored as environment variables and are never logged or exposed.</p>
+
+<h2>7. Children</h2>
+
+<p>BratBot is not intended for users under the age of 18. Some bot personalities generate adult-themed content. We do not knowingly collect data from minors.</p>
+
+<h2>8. Changes to This Policy</h2>
+
+<p>If we make material changes to this policy we will update the effective date at the top of this page. Continued use of the bot after changes constitutes acceptance of the updated policy.</p>
+
+<h2>9. Contact</h2>
+
+<p>For questions about this policy or to exercise your rights, open an issue at <a href="https://github.com/z0rd0n88/BratBot/issues">github.com/z0rd0n88/BratBot/issues</a>.</p>
+</body>
+</html>
