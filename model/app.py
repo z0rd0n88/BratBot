@@ -6,6 +6,7 @@ import binascii
 import logging
 import os
 import random
+import sys
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -135,6 +136,22 @@ async def lifespan(app: FastAPI):
         logger.warning("Requests will fail until Ollama is available")
     else:
         asyncio.create_task(_do_warmup(client))
+
+    # Production guard: refuse to start if BRATBOT_TEST_MODE=1 is set outside
+    # of pytest. The test-mode escape causes _load_prompt to return sentinel
+    # strings instead of real personality content — silently fine for tests,
+    # disastrous in production (bot becomes useless without crashing).
+    # Detection: "pytest" in sys.modules is true whenever pytest has imported
+    # anything in the current process (conftest, fixtures, test collection, or
+    # test execution). False during plain `uvicorn` / `python -m bratbotmodel`
+    # startup, so a misconfigured pod template trips this guard at boot.
+    if os.environ.get("BRATBOT_TEST_MODE") == "1" and "pytest" not in sys.modules:
+        raise RuntimeError(
+            "BRATBOT_TEST_MODE=1 is set but pytest is not running. This would "
+            "cause the model server to use fixture prompts instead of real ones. "
+            "Unset BRATBOT_TEST_MODE in your environment or pod template before "
+            "starting the model server."
+        )
 
     # Load and validate all personality prompts at startup so misconfiguration
     # crashes loudly here instead of at first user message. Logs names + lengths

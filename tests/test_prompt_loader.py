@@ -361,3 +361,63 @@ class TestEncryptScriptCommands:
             _ns(key=key_b64, path=str(fake_prompts_layout / "test.txt"))
         )
         assert rc == 0
+
+
+# ---------------------------------------------------------------------------
+# FastAPI lifespan startup hook validation
+# ---------------------------------------------------------------------------
+
+
+class TestLifespanStartupValidation:
+    """Verify that the model server's FastAPI lifespan hook actually loads
+    all 3 personality prompts at startup. The other tests in this file cover
+    _load_prompt() in isolation; this class covers the integration: that the
+    lifespan hook USES _load_prompt correctly. Without it, a refactor that
+    drops the prompt-loading block from the lifespan would silently regress
+    to the old per-request loading and only fail at first user message.
+    """
+
+    def test_lifespan_loads_all_three_prompts(self, monkeypatch):
+        """Lifespan must populate _PROMPT_CACHE with brat_level3, cami, bonnie."""
+        from starlette.testclient import TestClient
+
+        # Reset cache so we observe what the lifespan actually populates,
+        # not leftovers from earlier tests in this session.
+        monkeypatch.setattr(app, "_PROMPT_CACHE", {})
+
+        # conftest.py sets BRATBOT_TEST_MODE=1 so this uses fixture strings
+        # — no real crypto needed for this integration test.
+        with TestClient(app.app):
+            cache_after_startup = dict(app._PROMPT_CACHE)
+
+        assert "brat_level3" in cache_after_startup
+        assert "cami" in cache_after_startup
+        assert "bonnie" in cache_after_startup
+        # Test mode sentinels — confirms the cache really came from _load_prompt
+        # in test mode, not from some other accidental population path.
+        assert all("test fixture" in v for v in cache_after_startup.values())
+
+    def test_production_guard_blocks_test_mode_outside_pytest(self, monkeypatch):
+        """The lifespan hook must refuse to start if BRATBOT_TEST_MODE=1 is
+        set but pytest is not loaded. We simulate "no pytest" by removing the
+        'pytest' key from sys.modules — the production guard checks
+        `"pytest" in sys.modules` which becomes False. monkeypatch.delitem
+        auto-restores the entry after the test, so this is safe."""
+        from starlette.testclient import TestClient
+
+        monkeypatch.setattr(app, "_PROMPT_CACHE", {})
+        monkeypatch.setenv("BRATBOT_TEST_MODE", "1")
+
+        # Hide just the top-level "pytest" key — _pytest.* and other internals
+        # stay in place so the runner itself isn't disrupted. pytest.raises
+        # still works because the local `pytest` binding came from the module
+        # object that was imported at the top of this file (not from a fresh
+        # sys.modules lookup).
+        if "pytest" in sys.modules:
+            monkeypatch.delitem(sys.modules, "pytest")
+
+        with (
+            pytest.raises(RuntimeError, match="BRATBOT_TEST_MODE=1 is set but pytest"),
+            TestClient(app.app),
+        ):
+            pass
