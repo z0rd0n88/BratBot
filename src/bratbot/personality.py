@@ -51,7 +51,9 @@ _BRAT_HELP = """\
 `/intensity [1-3]` \N{EM DASH} set brat intensity (1=mild, 2=medium, 3=max). Omit to view current.
 `/verbose [1-3]` \N{EM DASH} set response length (1=short, 2=medium, 3=long). Omit to view current.
 `/pronoun [choice]` \N{EM DASH} set how Cami addresses you (male/female/other).
-`/ping` \N{EM DASH} check that I'm alive. I am.\
+`/ping` \N{EM DASH} check that I'm alive. I am.
+
+[Privacy Policy](https://z0rd0n88.github.io/BratBot/privacy) \N{EM DASH} [Terms of Service](https://z0rd0n88.github.io/BratBot/terms)\
 """
 
 
