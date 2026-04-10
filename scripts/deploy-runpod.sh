@@ -183,21 +183,31 @@ cmd_build() {
     # PyNaCl-capable Python is available — the optional pre-commit hook is the
     # belt-and-suspenders backup for this case.
     if [ -n "${PROMPTS_ENCRYPTION_KEY:-}" ]; then
+        # Try interpreters in order: native python3/python first (works in WSL,
+        # native Linux, and git-bash if a real Python is on PATH); then the
+        # project's Windows venv .exe as a last resort for git-bash on Windows.
+        # The Windows .venv/Scripts/python.exe is intentionally NOT tried first
+        # from WSL because it can't resolve /mnt/c-style paths passed as args.
         local py=""
-        for candidate in \
-            "${PROJECT_DIR}/.venv/Scripts/python.exe" \
-            "${PROJECT_DIR}/.venv/bin/python" \
-            python3 \
-            python; do
-            if [ -n "$candidate" ] && "$candidate" -c "import nacl.secret" 2>/dev/null; then
+        local in_wsl=0
+        if grep -qiE "(microsoft|wsl)" /proc/version 2>/dev/null; then
+            in_wsl=1
+        fi
+        local candidates=("python3" "python")
+        if [ "$in_wsl" -eq 0 ]; then
+            candidates+=("${PROJECT_DIR}/.venv/Scripts/python.exe" "${PROJECT_DIR}/.venv/bin/python")
+        fi
+        for candidate in "${candidates[@]}"; do
+            if "$candidate" -c "import nacl.secret" 2>/dev/null; then
                 py="$candidate"
                 break
             fi
         done
 
         if [ -z "$py" ]; then
-            warn "No Python with PyNaCl found — skipping prompt drift check."
-            warn "Install the project deps (uv sync) or use the pre-commit hook for safety."
+            warn "No Python with PyNaCl found on PATH — skipping prompt drift check."
+            warn "To enable: install pynacl in your shell's Python (pip install pynacl)"
+            warn "or rely on the optional pre-commit hook (scripts/pre-commit-encrypt-check.sh)."
         else
             info "Verifying model/prompts/*.txt.enc are in sync with .txt (using $py)..."
             local drift=0
