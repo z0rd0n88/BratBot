@@ -1,0 +1,57 @@
+# Plaintext personality prompts are gitignored — only the encrypted .enc files
+# are committed and shipped in the image. The model server decrypts them at
+# startup using PROMPTS_ENCRYPTION_KEY from the pod template env vars.
+# Without this exclusion, stale local .txt files would be COPY'd into /model/prompts/
+# and the loader's local-dev fast path would prefer them over the encrypted blobs,
+# causing the pod to run stale content.
+model/prompts/*.txt
+!model/prompts/*.txt.example
+
+# Local secrets — never bake these into the image
+.env
+.env.local
+.env.runpod
+.env.*.local
+
+# Local Claude metadata and dev tooling
+.claude/
+CLAUDE.md
+.CLAUDE.*
+docs/
+
+# Local virtualenv (image installs deps fresh)
+.venv/
+
+# Python caches and build artifacts
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+*.egg-info/
+
+# Git history (large and not needed at runtime)
+.git/
+.github/
+
+# Tests don't run inside the image
+tests/
+
+# Editor and OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Worktrees
+.worktrees/
+
+# Plans and scheduled tasks (local Claude state)
+plans/
+.claude-plans/
+
+# Deployment artifacts
+deployment.log
