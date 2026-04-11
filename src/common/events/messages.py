@@ -63,10 +63,39 @@ class MessageCog(commands.Cog):
         if not await self.bot.rate_limiter.check_channel(message.channel.id):
             return  # Silently drop — channel is saturated
 
+        user_brat_level = await self.bot.intensity_store.get_intensity(message.author.id)
+        user_verbosity = await self.bot.verbosity_store.get_verbosity(message.author.id)
+
         # Build LLM coroutine and enqueue
         async def _call_llm() -> None:
-            response = await self.bot.llm_client.chat(content)
+            history = []
+            try:
+                history = await self.bot.history_store.get(message.channel.id, message.author.id)
+            except Exception:
+                log.warning(
+                    "history_fetch_failed",
+                    channel_id=message.channel.id,
+                    user_id=message.author.id,
+                )
+
+            response = await self.bot.llm_client.chat(
+                content,
+                brat_level=user_brat_level,
+                verbosity=user_verbosity,
+                history=history,
+            )
             await message.reply(f"> {content}\n\n{response['reply']}")
+
+            try:
+                await self.bot.history_store.append(
+                    message.channel.id, message.author.id, content, response["reply"]
+                )
+            except Exception:
+                log.warning(
+                    "history_append_failed",
+                    channel_id=message.channel.id,
+                    user_id=message.author.id,
+                )
 
         try:
             await self.bot.request_queue.enqueue(message.channel, _call_llm())

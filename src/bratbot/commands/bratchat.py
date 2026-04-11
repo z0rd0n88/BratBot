@@ -55,6 +55,9 @@ class BratCog(commands.Cog):
             user_verbosity = await self.bot.verbosity_store.get_verbosity(
                 active_interaction.user.id
             )
+            user_intensity = await self.bot.intensity_store.get_intensity(
+                active_interaction.user.id
+            )
 
             log.info(
                 "bratchat_command",
@@ -65,10 +68,38 @@ class BratCog(commands.Cog):
             )
 
             async def _call_llm() -> None:
+                history = []
+                try:
+                    channel_id = active_interaction.channel.id if active_interaction.channel else 0
+                    history = await self.bot.history_store.get(
+                        channel_id, active_interaction.user.id
+                    )
+                except Exception:
+                    log.warning(
+                        "history_fetch_failed",
+                        guild_id=guild_id,
+                        user_id=active_interaction.user.id,
+                    )
+
                 response = await self.bot.llm_client.chat(
-                    message, verbosity=user_verbosity
+                    message,
+                    brat_level=user_intensity,
+                    verbosity=user_verbosity,
+                    history=history,
                 )
                 await active_interaction.followup.send(f"> {message}\n\n{response['reply']}")
+
+                try:
+                    channel_id = active_interaction.channel.id if active_interaction.channel else 0
+                    await self.bot.history_store.append(
+                        channel_id, active_interaction.user.id, message, response["reply"]
+                    )
+                except Exception:
+                    log.warning(
+                        "history_append_failed",
+                        guild_id=guild_id,
+                        user_id=active_interaction.user.id,
+                    )
 
             try:
                 if active_interaction.channel is not None:

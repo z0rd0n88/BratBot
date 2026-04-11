@@ -11,6 +11,8 @@ from discord.ext import commands
 from bratbot.config import settings
 from bratbot.personality import BRAT_PERSONALITY, Personality
 from bratbot.services.age_verification_store import AgeVerificationStore
+from common.services.conversation_history import ConversationHistoryStore
+from common.services.intensity_store import IntensityStore
 from common.services.llm_client import LLMClient
 from common.services.pronoun_store import PronounStore
 from common.services.rate_limiter import RateLimiter
@@ -34,6 +36,8 @@ class BratBot(commands.Bot):
     verbosity_store: VerbosityStore
     age_verification_store: AgeVerificationStore
     pronoun_store: PronounStore
+    history_store: ConversationHistoryStore
+    cami_history_store: ConversationHistoryStore
 
     def __init__(self) -> None:
         intents = discord.Intents.default()
@@ -56,11 +60,13 @@ class BratBot(commands.Bot):
         self.llm_client = LLMClient(
             base_url=settings.llm_api_url,
             chat_endpoint=self.personality.chat_endpoint,
+            default_brat_level=settings.llm_brat_level,
             timeout=settings.llm_timeout_seconds,
         )
         self.cami_llm_client = LLMClient(
             base_url=settings.llm_api_url,
             chat_endpoint="/camichat",
+            default_brat_level=settings.llm_brat_level,
             timeout=settings.llm_timeout_seconds,
         )
         healthy = await self.llm_client.health_check()
@@ -75,6 +81,8 @@ class BratBot(commands.Bot):
         self.verbosity_store = VerbosityStore(redis)
         self.age_verification_store = AgeVerificationStore(redis)
         self.pronoun_store = PronounStore(redis)
+        self.history_store = ConversationHistoryStore(redis, "bratbot", settings.history_size)
+        self.cami_history_store = ConversationHistoryStore(redis, "cami", settings.history_size)
 
         # Auto-discover and load all extensions
         await self._load_extensions()

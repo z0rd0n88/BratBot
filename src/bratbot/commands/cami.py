@@ -85,10 +85,33 @@ class CamiCog(commands.Cog):
             )
 
             async def _call_llm() -> None:
+                history = []
+                try:
+                    channel_id = active_interaction.channel.id if active_interaction.channel else 0
+                    history = await self.bot.cami_history_store.get(channel_id, user_id)
+                except Exception:
+                    log.warning(
+                        "history_fetch_failed",
+                        guild_id=guild_id,
+                        user_id=user_id,
+                    )
+
                 response = await self.bot.cami_llm_client.chat(
-                    message, verbosity=user_verbosity, pronoun=user_pronoun
+                    message, verbosity=user_verbosity, pronoun=user_pronoun, history=history
                 )
                 await active_interaction.followup.send(f"> {message}\n\n{response['reply']}")
+
+                try:
+                    channel_id = active_interaction.channel.id if active_interaction.channel else 0
+                    await self.bot.cami_history_store.append(
+                        channel_id, user_id, message, response["reply"]
+                    )
+                except Exception:
+                    log.warning(
+                        "history_append_failed",
+                        guild_id=guild_id,
+                        user_id=user_id,
+                    )
 
             try:
                 if active_interaction.channel is not None:

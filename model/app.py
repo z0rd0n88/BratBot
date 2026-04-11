@@ -187,18 +187,21 @@ app.include_router(interactions_router)
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
     verbosity: int = Field(default=2, ge=1, le=3)
+    history: list[dict] = Field(default_factory=list)
 
 
 class CamiChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
     verbosity: int = Field(default=2, ge=1, le=3)
     pronoun: str = Field(default="male")
+    history: list[dict] = Field(default_factory=list)
 
 
 class BonnieChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
     verbosity: int = Field(default=2, ge=1, le=3)
     pronoun: str = Field(default="male")
+    history: list[dict] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -358,6 +361,7 @@ async def bratchat(request: ChatRequest):
         "model": OLLAMA_MODEL,
         "messages": [
             {"role": "system", "content": system_prompt},
+            *request.history,
             {
                 "role": "user",
                 "content": request.message
@@ -451,6 +455,7 @@ async def camichat(request: CamiChatRequest):
         "model": OLLAMA_MODEL,
         "messages": [
             {"role": "system", "content": system_prompt},
+            *request.history,
             {
                 "role": "user",
                 "content": request.message
@@ -544,6 +549,7 @@ async def bonniebot(request: BonnieChatRequest):
         "model": OLLAMA_MODEL,
         "messages": [
             {"role": "system", "content": system_prompt},
+            *request.history,
             {
                 "role": "user",
                 "content": request.message

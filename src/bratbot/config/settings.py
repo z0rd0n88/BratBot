@@ -27,3 +27,6 @@ class Settings(BaseSettings):
     # can start without these being set; required in prod for the disclaimer links to work
     terms_url: str = ""  # Public URL for Terms of Service page
     privacy_url: str = ""  # Public URL for Privacy Policy page
+
+    # Conversation history
+    history_size: int = 10

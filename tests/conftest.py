@@ -41,6 +41,7 @@ def llm_client() -> LLMClient:
     return LLMClient(
         base_url="http://test:8000",
         chat_endpoint="/bratchat",
+        default_brat_level=3,
         timeout=10.0,
     )
 

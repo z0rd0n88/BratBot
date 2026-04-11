@@ -11,6 +11,8 @@ from discord.ext import commands
 from bonniebot.config import settings
 from bonniebot.personality import BONNIE_PERSONALITY
 from common.personality import Personality
+from common.services.conversation_history import ConversationHistoryStore
+from common.services.intensity_store import IntensityStore
 from common.services.llm_client import LLMClient
 from common.services.pronoun_store import PronounStore
 from common.services.rate_limiter import RateLimiter
@@ -32,6 +34,7 @@ class BonnieBot(commands.Bot):
     rate_limiter: RateLimiter
     verbosity_store: VerbosityStore
     pronoun_store: PronounStore
+    history_store: ConversationHistoryStore
 
     def __init__(self) -> None:
         intents = discord.Intents.default()
@@ -54,6 +57,7 @@ class BonnieBot(commands.Bot):
         self.llm_client = LLMClient(
             base_url=settings.llm_api_url,
             chat_endpoint=self.personality.chat_endpoint,
+            default_brat_level=settings.llm_brat_level,
             timeout=settings.llm_timeout_seconds,
         )
         healthy = await self.llm_client.health_check()
@@ -67,6 +71,7 @@ class BonnieBot(commands.Bot):
         self.rate_limiter = RateLimiter(redis)
         self.verbosity_store = VerbosityStore(redis)
         self.pronoun_store = PronounStore(redis)
+        self.history_store = ConversationHistoryStore(redis, "bonniebot", settings.history_size)
 
         # Auto-discover and load all extensions
         await self._load_extensions()

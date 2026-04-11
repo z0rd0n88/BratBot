@@ -17,6 +17,7 @@ class TestCamiCommand:
         mock_bot.verbosity_store.get_verbosity = AsyncMock(return_value=2)
         mock_bot.pronoun_store.get_pronoun = AsyncMock(return_value="male")
         mock_bot.cami_llm_client.chat = AsyncMock(return_value={"request_id": "x", "reply": "hi"})
+        mock_bot.cami_history_store.get = AsyncMock(return_value=[])
         mock_bot.request_queue = AsyncMock()
 
         cog = CamiCog(mock_bot)
@@ -29,7 +30,7 @@ class TestCamiCommand:
         await cog.camichat.callback(cog, interaction, message="hello")
 
         mock_bot.cami_llm_client.chat.assert_called_once_with(
-            "hello", verbosity=2, pronoun="male"
+            "hello", verbosity=2, pronoun="male", history=[]
         )
 
     async def test_camichat_passes_female_pronoun(self) -> None:
@@ -43,6 +44,7 @@ class TestCamiCommand:
         mock_bot.verbosity_store.get_verbosity = AsyncMock(return_value=2)
         mock_bot.pronoun_store.get_pronoun = AsyncMock(return_value="female")
         mock_bot.cami_llm_client.chat = AsyncMock(return_value={"request_id": "x", "reply": "hi"})
+        mock_bot.cami_history_store.get = AsyncMock(return_value=[])
         mock_bot.request_queue = AsyncMock()
 
         cog = CamiCog(mock_bot)
@@ -55,7 +57,7 @@ class TestCamiCommand:
         await cog.camichat.callback(cog, interaction, message="hello")
 
         mock_bot.cami_llm_client.chat.assert_called_once_with(
-            "hello", verbosity=2, pronoun="female"
+            "hello", verbosity=2, pronoun="female", history=[]
         )
 
     async def test_camichat_returns_early_when_unverified(self) -> None:

@@ -27,3 +27,6 @@ class Settings(BaseSettings):
     # LLM request queue
     llm_queue_max_depth: int = 5
     llm_timeout_seconds: int = 30
+
+    # Conversation history
+    history_size: int = 10
