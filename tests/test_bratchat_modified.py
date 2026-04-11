@@ -12,8 +12,8 @@ class TestBratChatModified:
     async def test_bratchat_fetches_user_intensity(self) -> None:
         """bratchat fetches user's stored intensity before calling LLM."""
         from bratbot.commands.bratchat import BratCog
-        from bratbot.services.rate_limiter import RateLimiter
-        from bratbot.services.request_queue import RequestQueue
+        from common.services.rate_limiter import RateLimiter
+        from common.services.request_queue import RequestQueue
 
         mock_bot = AsyncMock()
         mock_bot.rate_limiter = AsyncMock(spec=RateLimiter)
@@ -49,7 +49,7 @@ class TestBratChatModified:
     async def test_bratchat_uses_default_intensity_when_not_set(self) -> None:
         """bratchat uses default intensity (3) when user hasn't set preference."""
         from bratbot.commands.bratchat import BratCog
-        from bratbot.services.rate_limiter import RateLimiter
+        from common.services.rate_limiter import RateLimiter
 
         mock_bot = AsyncMock()
         mock_bot.rate_limiter = AsyncMock(spec=RateLimiter)

@@ -8,7 +8,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from bratbot.services.llm_client import LLMError, LLMWarmingError
+from common.services.llm_client import LLMError, LLMWarmingError
 from common.utils.logger import get_logger
 
 if TYPE_CHECKING:

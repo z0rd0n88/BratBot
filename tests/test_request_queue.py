@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 import discord
 import pytest
 
-from bratbot.services.request_queue import RequestQueue
+from common.services.request_queue import RequestQueue
 
 
 @pytest.fixture

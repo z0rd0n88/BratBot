@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from bratbot.services.verbosity_store import VerbosityStore
+from common.services.verbosity_store import VerbosityStore
 
 
 @pytest.fixture

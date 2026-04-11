@@ -89,7 +89,7 @@ class ErrorHandlerCog(commands.Cog):
             return p.not_found_error
 
         # LLM client errors
-        from bratbot.services.llm_client import (
+        from common.services.llm_client import (
             LLMConnectionError,
             LLMError,
             LLMServerError,
