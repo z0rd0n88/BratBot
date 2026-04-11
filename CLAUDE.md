@@ -20,12 +20,14 @@ Discord bot with a bratty, condescending personality, powered by a self-hosted L
 - **`uv` not on PATH**: use `.venv/Scripts/python.exe -m <tool>` for pytest, ruff, etc. (or `uv run` if `uv` is available)
 - **Pre-commit hook on Windows**: the encrypt-check hook defaults to `python3` (opens Microsoft Store); always commit with `PYTHON=python git commit` on Windows
 - `uv sync --all-extras` — install all dependencies including dev
+- `python -m pytest` — use this form (bare `pytest` is not on PATH on this Windows setup)
 - `uv run pytest tests/ -v` — run tests
 - `uv run ruff check src/ model/` — lint
 - `uv run ruff format src/ model/` — format
 - `docker compose up` — run full stack
 - `python -m bratbot` — run Discord bot standalone
 - `uvicorn model.app:app --port 8000` — run model API standalone
+- `python scripts/test_bots.py` — manual bot test harness: sends predefined queries from `scripts/test_queries.yaml` to all 3 endpoints, outputs terminal summary + JSON. `--html` for HTML report, `--bots bratbot cami` to filter, `--base-url` for remote servers
 
 ## Deployment
 
@@ -84,6 +86,7 @@ No special WSL configuration is needed — just clone and run `./scripts/deploy-
 - **Monorepo bot structure**: `common.events.*` is shared by all bots; `botname.commands.*` is bot-specific. Each new bot should set `_COG_PACKAGES = ("common.events", "botname.commands")` in its `bot.py`. Bug fixes to events automatically apply to all bots — no cherry-pick needed.
 - **Dependency sync**: `model/requirements.txt` is a static file used by `Dockerfile.runpod` — it must be manually updated when `pyproject.toml` dependencies change. After pushing a new image, hotfix the running pod with `pip install <pkg>` + `supervisorctl restart <service>` (since the pod won't pull the new image without a stop/start)
 - Cogs auto-discovered via `pkgutil.iter_modules()` in `bot.py` — just add a file with `async def setup(bot)` to `commands/` or `events/`
+- **`scripts/__init__.py` required**: The `scripts/` dir has an `__init__.py` so tests can `from scripts.test_bots import load_queries` etc. — add it when creating new importable modules in `scripts/`
 - **Testing Discord commands**: `@app_commands.command` wraps the method in a `Command` object — call `.callback(cog, interaction, ...)` in tests to invoke the handler directly
 - **Testing age-gated commands**: Mock `mock_bot.age_verification_store.is_verified = AsyncMock(return_value=True)` in test setup — commands call it before rate limiting, so missing it causes `AttributeError` before any assertions.
 - **Redis mock**: `conftest.py` has an `async` `redis_mock` fixture (in-memory dict) — use it for any service that takes a Redis client
