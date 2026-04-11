@@ -306,3 +306,129 @@ def save_json_results(
     path = output_dir / f"results_{ts}.json"
     path.write_text(json.dumps(output, indent=2, ensure_ascii=False))
     return path
+
+
+# ── HTML report ──────────────────────────────────────────────────────────────
+
+def generate_html_report(
+    results: list[dict],
+    metadata: dict,
+    output_dir: Path,
+) -> Path:
+    """Generate a self-contained HTML report. Returns the file path."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    total = len(results)
+    errors = sum(1 for r in results if r.get("error"))
+    flags = sum(
+        1
+        for r in results
+        for a in r.get("soft_assertions", [])
+        if not a.get("passed")
+    )
+
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
+
+    # Group results by (suite, query_name)
+    grouped: dict[str, list[dict]] = {}
+    for r in results:
+        key = f"{r.get('suite', 'unknown')}:{r.get('query_name', 'unknown')}"
+        grouped.setdefault(key, []).append(r)
+
+    # Build result cards
+    cards_html = ""
+    for key, group in grouped.items():
+        suite, name = key.split(":", 1)
+        desc = group[0].get("description", "")
+        cards_html += f'<div class="card"><h3>{name} <span class="suite">[{suite}]</span></h3>\n'
+        if desc:
+            cards_html += f"<p class=\"desc\">{_esc(desc)}</p>\n"
+        for r in group:
+            bot = r.get("bot", "?")
+            turn_label = ""
+            if "turn" in r:
+                turn_label = f" (turn {r['turn']}/{r['total_turns']})"
+
+            if r.get("error"):
+                status_class = "error"
+                status_icon = "\u2717"
+                body = f"<pre class=\"error-text\">{_esc(r['error'])}</pre>"
+            else:
+                status_class = "ok"
+                status_icon = "\u2713"
+                reply = r.get("response", {}).get("reply", "") if r.get("response") else ""
+                body = f"<pre>{_esc(reply)}</pre>"
+
+            latency = f"{r.get('latency_seconds', 0):.2f}s"
+
+            assertions_html = ""
+            for a in r.get("soft_assertions", []):
+                a_class = "pass" if a["passed"] else "fail"
+                a_icon = "\u2713" if a["passed"] else "\u2717"
+                assertions_html += (
+                    f'<span class="assertion {a_class}">'
+                    f"[contains: {_esc(a['expected'])} {a_icon}]</span> "
+                )
+
+            cards_html += (
+                f'<details class="{status_class}">'
+                f"<summary>{status_icon} <b>{_esc(bot)}</b>{turn_label} "
+                f"<span class=\"latency\">{latency}</span> {assertions_html}</summary>\n"
+                f"<div class=\"detail\">\n"
+                f"<h4>Request</h4><pre>{_esc(json.dumps(r.get('request', {}), indent=2))}</pre>\n"
+                f"<h4>Response</h4>{body}\n"
+                f"</div></details>\n"
+            )
+        cards_html += "</div>\n"
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bot Test Report — {ts}</title>
+<style>
+  body {{ font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; background: #1a1a2e; color: #e0e0e0; }}
+  h1 {{ color: #e94560; }}
+  .stats {{ display: flex; gap: 2rem; margin-bottom: 2rem; }}
+  .stat {{ background: #16213e; padding: 1rem 1.5rem; border-radius: 8px; }}
+  .stat b {{ font-size: 1.5rem; display: block; }}
+  .stat.errors b {{ color: #e94560; }}
+  .stat.success b {{ color: #0f3460; }}
+  .card {{ background: #16213e; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }}
+  .card h3 {{ margin: 0 0 0.5rem; color: #e94560; }}
+  .suite {{ font-size: 0.75rem; color: #888; font-weight: normal; }}
+  .desc {{ color: #aaa; font-size: 0.9rem; margin: 0 0 0.5rem; }}
+  details {{ margin: 0.25rem 0; padding: 0.5rem; border-radius: 4px; }}
+  details.ok {{ border-left: 3px solid #4ecca3; }}
+  details.error {{ border-left: 3px solid #e94560; }}
+  summary {{ cursor: pointer; list-style: none; }}
+  summary::-webkit-details-marker {{ display: none; }}
+  .latency {{ color: #888; font-size: 0.85rem; }}
+  .detail {{ padding: 0.5rem 0 0 1rem; }}
+  pre {{ background: #0f3460; padding: 0.75rem; border-radius: 4px; white-space: pre-wrap; word-break: break-word; font-size: 0.85rem; }}
+  .error-text {{ color: #e94560; }}
+  .assertion.pass {{ color: #4ecca3; }}
+  .assertion.fail {{ color: #e94560; font-weight: bold; }}
+  h4 {{ margin: 0.5rem 0 0.25rem; color: #aaa; font-size: 0.85rem; }}
+</style>
+</head>
+<body>
+<h1>Bot Test Report</h1>
+<p>Base URL: <code>{_esc(metadata.get('base_url', '?'))}</code> | Generated: {ts}</p>
+<div class="stats">
+  <div class="stat success"><b>{total - errors}/{total}</b> Responses</div>
+  <div class="stat errors"><b>{errors}</b> Errors</div>
+  <div class="stat"><b>{flags}</b> Assertions Flagged</div>
+</div>
+{cards_html}
+</body>
+</html>"""
+
+    path = output_dir / f"report_{ts}.html"
+    path.write_text(html, encoding="utf-8")
+    return path
+
+
+def _esc(s: str) -> str:
+    """Escape HTML special characters."""
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
