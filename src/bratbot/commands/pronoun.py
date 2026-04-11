@@ -48,7 +48,7 @@ class PronounCog(commands.Cog):
                 await _reply(
                     active_interaction,
                     f"\u2713 Your pronoun preference is now **{pronoun.value}**. "
-                    f"Cami will address you accordingly.",
+                    "You will be addressed accordingly.",
                 )
             else:
                 was_explicitly_set = await self.bot.pronoun_store.was_set(user_id)
