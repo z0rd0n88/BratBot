@@ -7,7 +7,7 @@ import argparse
 import json
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
@@ -290,9 +290,9 @@ def save_json_results(
         if not a.get("passed")
     )
 
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
+    ts = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%S")
     output = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         **metadata,
         "results": results,
         "summary": {
@@ -327,7 +327,7 @@ def generate_html_report(
         if not a.get("passed")
     )
 
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
+    ts = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%S")
 
     # Group results by (suite, query_name)
     grouped: dict[str, list[dict]] = {}
@@ -387,7 +387,8 @@ def generate_html_report(
 <meta charset="utf-8">
 <title>Bot Test Report — {ts}</title>
 <style>
-  body {{ font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; background: #1a1a2e; color: #e0e0e0; }}
+  body {{ font-family: system-ui, sans-serif; max-width: 900px;
+    margin: 2rem auto; padding: 0 1rem; background: #1a1a2e; color: #e0e0e0; }}
   h1 {{ color: #e94560; }}
   .stats {{ display: flex; gap: 2rem; margin-bottom: 2rem; }}
   .stat {{ background: #16213e; padding: 1rem 1.5rem; border-radius: 8px; }}
@@ -405,7 +406,8 @@ def generate_html_report(
   summary::-webkit-details-marker {{ display: none; }}
   .latency {{ color: #888; font-size: 0.85rem; }}
   .detail {{ padding: 0.5rem 0 0 1rem; }}
-  pre {{ background: #0f3460; padding: 0.75rem; border-radius: 4px; white-space: pre-wrap; word-break: break-word; font-size: 0.85rem; }}
+  pre {{ background: #0f3460; padding: 0.75rem; border-radius: 4px;
+    white-space: pre-wrap; word-break: break-word; font-size: 0.85rem; }}
   .error-text {{ color: #e94560; }}
   .assertion.pass {{ color: #4ecca3; }}
   .assertion.fail {{ color: #e94560; font-weight: bold; }}

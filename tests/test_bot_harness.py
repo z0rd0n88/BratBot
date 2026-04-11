@@ -1,10 +1,9 @@
 """Tests for the bot test harness utility functions."""
 
+import json
 import textwrap
-from pathlib import Path
 
 import pytest
-import yaml
 
 
 @pytest.fixture
@@ -182,9 +181,6 @@ class TestFormatResultLine:
         }
         line = format_result_line("bratbot", record)
         assert "[contains: Alex \u2717]" in line
-
-
-import json
 
 
 class TestSaveJsonResults:
