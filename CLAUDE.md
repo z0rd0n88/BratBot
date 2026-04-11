@@ -69,6 +69,7 @@ No special WSL configuration is needed — just clone and run `./scripts/deploy-
 - **Personality injection pattern**: Discord bots in monorepo use `Personality` dataclass attached to bot instance (`bot.personality`). Shared cogs read from it instead of module-level constants — enables multiple bot personalities without code duplication. Each bot defines its own personality file with strings + LLM endpoint.
 - **Personality voice guides**: `model/prompts/<botname>.txt` defines each bot's voice, pet names, and style — reference these when writing or updating `Personality` strings in `src/<botname>/personality.py`
 - User preference stores live in `services/` (e.g. `IntensityStore`, `VerbosityStore`) — Redis key `user:{id}:{pref}`, `get_x()` returns a default if unset, `was_set()` distinguishes "user chose this" from "default"
+- **Conversation history**: `ConversationHistoryStore` in `common/services/conversation_history.py` — Redis list keyed `history:{persona}:channel:{channel_id}:{user_id}`, trimmed to `history_size * 2` entries on every write. Persona names: `bratbot`, `cami`, `bonniebot`. BratBot initializes two stores (`bot.history_store` for BratBot, `bot.cami_history_store` for Cami); BonnieBot one (`bot.history_store`). History is fetched before and stored after every successful LLM call; Redis failures degrade gracefully (history skipped, bot still responds).
 - Python 3.12, Ruff for linting and formatting (line-length 100)
 - Ruff rules: E, F, I, UP, B, SIM
 - Async everywhere (pytest-asyncio with auto mode)
@@ -91,6 +92,9 @@ No special WSL configuration is needed — just clone and run `./scripts/deploy-
 - **`_COG_PACKAGES` silent failure**: this tuple is fed to `pkgutil.iter_modules()` at runtime, not evaluated as a Python import. If the package path is wrong (e.g. after moving a package), the bot starts cleanly but loads zero cogs — no error, just missing event handlers and commands.
 - **LLMClient endpoint isolation**: Instantiate with `chat_endpoint` param (e.g., `/bratchat` for BratBot, `/bonniebot` for BonnieBot). Each bot process has its own client instance — no shared singleton.
 - **Cami LLM client**: BratBot has a second client `bot.cami_llm_client` (`chat_endpoint="/camichat"`) — use it in Cami commands, not `bot.llm_client`. There is no `cami_chat()` method.
+- **Cami history store**: BratBot has a second history store `bot.cami_history_store` (persona `"cami"`) — use it in Cami commands, not `bot.history_store`.
+- **`LLMClient` requires `default_brat_level`**: constructor signature is `LLMClient(base_url, chat_endpoint, default_brat_level, timeout)`. The `chat()` method accepts `brat_level` as a keyword-only arg; if omitted, the client's default is used. The `history` kwarg is also keyword-only and defaults to `[]`.
+- **`/forget` persona param (BratBot)**: `ForgetCog.forget()` takes `persona: Literal["bratbot", "cami"]` and clears the corresponding store. `/forgetall` calls `history_store.clear_all()` which deletes keys for all three persona names defined in `ALL_PERSONA_NAMES` (`common/services/conversation_history.py`).
 - `model/` is not a Python package (no `__init__.py`) — tests add it to `sys.path` manually
 - Rate limiter degrades gracefully: if Redis is down, requests are allowed through
 - All Discord-facing error messages must stay in-character (matching `bot.personality`); never expose stack traces

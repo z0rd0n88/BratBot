@@ -44,6 +44,7 @@ A multi-personality Discord bot monorepo powered by a self-hosted LLM (via Ollam
                                │    Redis     │
                                │    :6379     │
                                │ rate limits  │
+                               │ conv history │
                                └──────────────┘
 ```
 
@@ -57,8 +58,9 @@ Each bot has its own personality endpoint (`/bratchat`, `/bonniebot`) with isola
 
 - **Multi-Personality Monorepo** — Multiple Discord bots sharing one codebase. Bug fixes apply to all bots automatically.
 - **Self-Hosted LLM** — Runs on your own hardware via Ollama. No API keys, no usage fees, full control.
-- **Slash Commands** — `/bratchat`, `/camichat` (BratBot), `/bonniebot` (BonnieBot), plus shared commands (`/ping`, `/intensity`, `/verbose`, `/help`).
+- **Slash Commands** — `/bratchat`, `/camichat` (BratBot), `/bonniebot` (BonnieBot), plus shared commands (`/ping`, `/intensity`, `/verbose`, `/help`, `/forget`, `/forgetall`).
 - **@Mention Support** — Mention either bot in any channel for free-form conversation.
+- **Conversation History** — Per-user, per-channel, per-persona sliding window of the last N exchanges (default 10), injected as proper multi-turn messages into every LLM request. Users can clear history with `/forget` or `/forgetall`.
 - **Adjustable Intensity** — Per-user intensity levels (1–3) via the `/intensity` command.
 - **Adjustable Verbosity** — Per-user response length (1–3) via the `/verbose` command.
 - **Custom GGUF Models** — Import your own quantized model files via Modelfile, or pull from Ollama's registry.
@@ -290,7 +292,7 @@ the build aborts before producing an image with stale prompts.
 | `app` | Built from Dockerfile | 8000 | BratBot (Discord) + BratBotModel |
 | `bonniebot` | Built from Dockerfile | — | BonnieBot (Discord) — shares model server via `app` |
 | `ollama` | `ollama/ollama` | 11434 | LLM inference (GPU) |
-| `redis` | `redis:7-alpine` | 6379 | Rate limits |
+| `redis` | `redis:7-alpine` | 6379 | Rate limits, user preferences, conversation history |
 
 ---
 
@@ -372,10 +374,11 @@ BratBot/
         intensity.py          # /intensity (1-3 attitude level)
         verbose.py            # /verbose (1-3 response length)
         help.py               # /help (list available commands)
+        forget.py             # /forget (persona-specific), /forgetall
       events/                 # Shared event handlers (used by all bots)
         ready.py              # on_ready listener
         guild.py              # Guild join/remove logging
-        messages.py           # @mention → LLM pipeline
+        messages.py           # @mention → LLM pipeline (fetches/stores history)
         errors.py             # Global error handler
       services/               # Shared services (used by all bots)
         llm_client.py         # Async HTTP client for personality API
@@ -383,6 +386,7 @@ BratBot/
         request_queue.py      # Per-channel async LLM queue
         intensity_store.py    # Per-user intensity preference (Redis)
         verbosity_store.py    # Per-user verbosity preference (Redis)
+        conversation_history.py  # Per-user/channel/persona history (Redis)
       utils/
         logger.py             # structlog setup
         redis.py              # Async Redis client singleton
@@ -398,6 +402,7 @@ BratBot/
         intensity.py          # /intensity
         verbose.py            # /verbose
         help.py               # /help (list available commands)
+        forget.py             # /forget, /forgetall
   tests/
     conftest.py               # Shared fixtures
     test_llm_client.py        # LLM client tests
@@ -473,6 +478,7 @@ OLLAMA_NUM_CTX=32768
 | `RATE_LIMIT_CHANNEL_PER_MINUTE` | No | `10` | Max requests per channel per minute |
 | `LLM_QUEUE_MAX_DEPTH` | No | `5` | Max queued LLM requests per channel |
 | `LLM_TIMEOUT_SECONDS` | No | `30` | LLM request timeout in seconds |
+| `HISTORY_SIZE` | No | `10` | Number of past exchanges to include in each LLM request |
 | `OLLAMA_BASE_URL` | No | `http://ollama:11434` | Ollama API URL (used by BratBotModel) |
 | `OLLAMA_MODEL` | No | `mannix/llama3.1-8b-abliterated:q8_0` | Ollama model name |
 | `LLM_MODELS_DIR` | No | — | Host path to GGUF model files (mounted into Ollama at `/models`) |
@@ -488,6 +494,7 @@ BonnieBot uses the `BONNIEBOT_` prefix for all settings. Only Discord credential
 | `BONNIEBOT_DISCORD_PUBLIC_KEY` | Yes | — | BonnieBot Ed25519 key |
 | `BONNIEBOT_LLM_API_URL` | Yes | — | Same model server as BratBot |
 | `BONNIEBOT_REDIS_URL` | Yes | — | Same Redis as BratBot |
+| `BONNIEBOT_HISTORY_SIZE` | No | `10` | Number of past exchanges to include in each LLM request |
 
 ---
 
@@ -515,8 +522,11 @@ Each personality requires its own Discord application. Repeat these steps for bo
 |---|---|
 | `/ping` | Check if the bot is alive (returns latency) |
 | `/bratchat <message>` | Ask BratBot a question |
+| `/camichat <message>` | Ask Cami a question |
 | `/intensity [1-3]` | Set or view your preferred brat intensity (1=mild, 2=medium, 3=maximum) |
 | `/verbose [1-3]` | Set or view your preferred response length (1=short, 2=medium, 3=long) |
+| `/forget <persona>` | Clear your conversation history for `bratbot` or `cami` in this channel |
+| `/forgetall` | Clear your conversation history for all personas in this channel |
 
 ### BonnieBot Commands
 
@@ -526,6 +536,8 @@ Each personality requires its own Discord application. Repeat these steps for bo
 | `/bonniebot <message>` | Talk to Bonnie |
 | `/intensity [1-3]` | Set or view your preferred intensity |
 | `/verbose [1-3]` | Set or view your preferred response length |
+| `/forget` | Clear your BonnieBot conversation history in this channel |
+| `/forgetall` | Clear your conversation history for all personas in this channel |
 
 You can also @mention either bot in any channel for conversational responses.
 
