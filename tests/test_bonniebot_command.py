@@ -13,7 +13,6 @@ class TestBonniebotCommand:
         mock_bot = AsyncMock()
         mock_bot.rate_limiter.check_user = AsyncMock(return_value=True)
         mock_bot.rate_limiter.check_channel = AsyncMock(return_value=True)
-        mock_bot.intensity_store.get_intensity = AsyncMock(return_value=3)
         mock_bot.verbosity_store.get_verbosity = AsyncMock(return_value=2)
         mock_bot.pronoun_store.get_pronoun = AsyncMock(return_value="male")
         mock_bot.llm_client.chat = AsyncMock(return_value={"request_id": "x", "reply": "hi"})
@@ -29,7 +28,7 @@ class TestBonniebotCommand:
         await cog.bonniebot.callback(cog, interaction, message="hello")
 
         mock_bot.llm_client.chat.assert_called_once_with(
-            "hello", brat_level=3, verbosity=2, pronoun="male"
+            "hello", verbosity=2, pronoun="male"
         )
 
     async def test_bonniebot_passes_female_pronoun(self) -> None:
@@ -39,7 +38,6 @@ class TestBonniebotCommand:
         mock_bot = AsyncMock()
         mock_bot.rate_limiter.check_user = AsyncMock(return_value=True)
         mock_bot.rate_limiter.check_channel = AsyncMock(return_value=True)
-        mock_bot.intensity_store.get_intensity = AsyncMock(return_value=3)
         mock_bot.verbosity_store.get_verbosity = AsyncMock(return_value=2)
         mock_bot.pronoun_store.get_pronoun = AsyncMock(return_value="female")
         mock_bot.llm_client.chat = AsyncMock(return_value={"request_id": "x", "reply": "hi"})
@@ -55,5 +53,5 @@ class TestBonniebotCommand:
         await cog.bonniebot.callback(cog, interaction, message="hello")
 
         mock_bot.llm_client.chat.assert_called_once_with(
-            "hello", brat_level=3, verbosity=2, pronoun="female"
+            "hello", verbosity=2, pronoun="female"
         )

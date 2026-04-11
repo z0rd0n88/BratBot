@@ -52,9 +52,6 @@ class BratCog(commands.Cog):
             if not active_interaction.response.is_done():
                 await active_interaction.response.defer()
 
-            user_intensity = await self.bot.intensity_store.get_intensity(
-                active_interaction.user.id
-            )
             user_verbosity = await self.bot.verbosity_store.get_verbosity(
                 active_interaction.user.id
             )
@@ -63,14 +60,13 @@ class BratCog(commands.Cog):
                 "bratchat_command",
                 guild_id=guild_id,
                 user_id=active_interaction.user.id,
-                user_intensity=user_intensity,
                 user_verbosity=user_verbosity,
                 message_length=len(message),
             )
 
             async def _call_llm() -> None:
                 response = await self.bot.llm_client.chat(
-                    message, brat_level=user_intensity, verbosity=user_verbosity
+                    message, verbosity=user_verbosity
                 )
                 await active_interaction.followup.send(f"> {message}\n\n{response['reply']}")
 

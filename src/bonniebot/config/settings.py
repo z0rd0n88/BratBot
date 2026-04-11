@@ -1,4 +1,3 @@
-from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,7 +19,6 @@ class Settings(BaseSettings):
     # Optional with defaults
     log_level: str = "INFO"
     guild_id: int | None = None  # Set for dev guild-sync (instant), None for global sync
-    llm_brat_level: int = Field(default=3, ge=1, le=3)  # Default intensity 1-3
 
     # Rate limiting
     rate_limit_user_seconds: int = 5

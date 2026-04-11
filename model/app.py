@@ -186,7 +186,6 @@ app.include_router(interactions_router)
 # ---------------------------------------------------------------------------
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
-    brat_level: int = Field(default=3, ge=1, le=3)
     verbosity: int = Field(default=2, ge=1, le=3)
 
 
@@ -198,7 +197,6 @@ class CamiChatRequest(BaseModel):
 
 class BonnieChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
-    level: int = Field(default=3, ge=1, le=3)
     verbosity: int = Field(default=2, ge=1, le=3)
     pronoun: str = Field(default="male")
 
@@ -278,27 +276,6 @@ def _load_prompt(name: str) -> str:
     return result
 
 
-def get_system_prompt(level: int) -> str:
-    """Return the system prompt for the given brattiness level."""
-    if level == 3:
-        return _load_prompt("brat_level3")
-
-    prompts = {
-        1: (
-            "You are a highly intelligent assistant. You are helpful, but you find "
-            "the user's questions slightly tedious. Answer accurately, but let out a "
-            "very subtle text-based sigh (*sigh*) before doing so."
-        ),
-        2: (
-            "You are a snarky, impatient AI. Answer the question accurately, but "
-            "roast the user's phrasing mildly. Make sure they know you are doing "
-            "them a favor by taking time out of your 'busy' schedule to process "
-            "their prompt."
-        ),
-    }
-    return prompts.get(level, prompts[2])
-
-
 def get_cami_system_prompt() -> str:
     """Return the system prompt for Cami's personality."""
     return _load_prompt("cami")
@@ -369,15 +346,14 @@ async def bratchat(request: ChatRequest):
 
     request_id = uuid.uuid4().hex[:8]
     logger.info(
-        "[%s] brat_level=%d message_len=%d",
+        "[%s] message_len=%d",
         request_id,
-        request.brat_level,
         len(request.message),
     )
 
     current_mood = random.choice(BRAT_MOODS)
     logger.info("[%s] mood=%s", request_id, current_mood[:40])
-    system_prompt = get_system_prompt(request.brat_level) + f"\n\n[TODAY'S VIBE: {current_mood}]"
+    system_prompt = _load_prompt("brat_level3") + f"\n\n[TODAY'S VIBE: {current_mood}]"
     ollama_payload = {
         "model": OLLAMA_MODEL,
         "messages": [
@@ -446,7 +422,6 @@ async def bratchat(request: ChatRequest):
 
     return {
         "request_id": request_id,
-        "brat_level": request.brat_level,
         "reply": reply,
     }
 
@@ -553,9 +528,8 @@ async def bonniebot(request: BonnieChatRequest):
 
     request_id = uuid.uuid4().hex[:8]
     logger.info(
-        "[%s] bonniebot level=%d message_len=%d",
+        "[%s] bonniebot message_len=%d",
         request_id,
-        request.level,
         len(request.message),
     )
 
@@ -634,6 +608,5 @@ async def bonniebot(request: BonnieChatRequest):
 
     return {
         "request_id": request_id,
-        "level": request.level,
         "reply": reply,
     }

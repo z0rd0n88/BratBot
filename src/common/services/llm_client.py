@@ -49,7 +49,6 @@ class LLMClient:
     Args:
         base_url: Base URL of the model server.
         chat_endpoint: Path called by :meth:`chat` (e.g. ``"/bratchat"``, ``"/camichat"``, ``"/bonniebot"``).
-        default_brat_level: Default intensity level when none is supplied.
         timeout: Request timeout in seconds.
     """
 
@@ -57,7 +56,6 @@ class LLMClient:
         self,
         base_url: str,
         chat_endpoint: str,
-        default_brat_level: int,
         timeout: float,
     ) -> None:
         self._client = httpx.AsyncClient(
@@ -65,7 +63,6 @@ class LLMClient:
             timeout=httpx.Timeout(timeout, connect=5.0),
         )
         self._chat_endpoint = chat_endpoint
-        self._default_brat_level = default_brat_level
 
     async def health_check(self) -> bool:
         """Return ``True`` if the LLM server is healthy (model loaded)."""
@@ -78,7 +75,6 @@ class LLMClient:
     async def chat(
         self,
         message: str,
-        brat_level: int | None = None,
         verbosity: int = 2,
         pronoun: str = "male",
     ) -> dict:
@@ -97,7 +93,6 @@ class LLMClient:
         """
         payload = {
             "message": message[:2000],
-            "brat_level": brat_level if brat_level is not None else self._default_brat_level,
             "verbosity": verbosity,
             "pronoun": pronoun,
         }
@@ -127,7 +122,6 @@ class LLMClient:
         log.debug(
             "llm_chat_response",
             request_id=data.get("request_id"),
-            brat_level=data.get("brat_level"),
         )
         return data
 
