@@ -10,7 +10,7 @@ from discord.ext import commands
 
 from bonniebot.config import settings
 from bonniebot.personality import BONNIE_PERSONALITY
-from bratbot.personality import Personality
+from common.personality import Personality
 from common.services.intensity_store import IntensityStore
 from common.services.llm_client import LLMClient
 from common.services.pronoun_store import PronounStore
@@ -23,7 +23,7 @@ from common.utils.redis import close_redis, get_redis
 log = get_logger(__name__)
 
 # Shared events from bratbot + BonnieBot's own commands
-_COG_PACKAGES = ("bratbot.events", "bonniebot.commands")
+_COG_PACKAGES = ("common.events", "bonniebot.commands")
 
 
 class BonnieBot(commands.Bot):

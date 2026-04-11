@@ -23,7 +23,7 @@ from common.utils.redis import close_redis, get_redis
 log = get_logger(__name__)
 
 # Packages to auto-discover cog modules from
-_COG_PACKAGES = ("bratbot.commands", "bratbot.events")
+_COG_PACKAGES = ("bratbot.commands", "common.events")
 
 
 class BratBot(commands.Bot):
