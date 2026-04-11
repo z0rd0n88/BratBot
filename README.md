@@ -58,11 +58,11 @@ Each bot has its own personality endpoint (`/bratchat`, `/bonniebot`) with isola
 
 - **Multi-Personality Monorepo** — Multiple Discord bots sharing one codebase. Bug fixes apply to all bots automatically.
 - **Self-Hosted LLM** — Runs on your own hardware via Ollama. No API keys, no usage fees, full control.
-- **Slash Commands** — `/bratchat`, `/camichat` (BratBot), `/bonniebot` (BonnieBot), plus shared commands (`/ping`, `/intensity`, `/verbose`, `/help`, `/forget`, `/forgetall`).
+- **Slash Commands** — `/bratchat`, `/camichat` (BratBot), `/bonniebot` (BonnieBot), plus shared commands (`/ping`, `/verbose`, `/pronoun`, `/help`, `/forget`, `/forgetall`).
 - **@Mention Support** — Mention either bot in any channel for free-form conversation.
 - **Conversation History** — Per-user, per-channel, per-persona sliding window of the last N exchanges (default 10), injected as proper multi-turn messages into every LLM request. Users can clear history with `/forget` or `/forgetall`.
-- **Adjustable Intensity** — Per-user intensity levels (1–3) via the `/intensity` command.
 - **Adjustable Verbosity** — Per-user response length (1–3) via the `/verbose` command.
+- **Pronoun Preferences** — Per-user pronoun setting (male/female/other) via `/pronoun`, used by Cami and BonnieBot for personalized address.
 - **Custom GGUF Models** — Import your own quantized model files via Modelfile, or pull from Ollama's registry.
 - **Rate Limiting** — Per-user cooldowns and per-channel rate limits via Redis.
 - **Request Queue** — Per-channel async queue prevents overlapping LLM responses.
@@ -383,46 +383,52 @@ BratBot/
     prompts/                  # System prompt files per personality
     requirements.txt          # Model API dependencies
   src/
-    bratbot/                  # BratBot + shared infrastructure
+    common/                   # Shared package (used by all bots)
+      personality.py          # Personality base dataclass
+      events/                 # Shared event handlers (auto-loaded by all bots)
+        ready.py              # on_ready listener
+        guild.py              # Guild join/remove logging
+        messages.py           # @mention → LLM pipeline (fetches/stores history)
+        errors.py             # Global error handler (maps exceptions to personality strings)
+      services/               # Shared services (Redis-backed)
+        llm_client.py         # Async HTTP client for personality API
+        rate_limiter.py       # Redis rate limiting (per-user + per-channel)
+        request_queue.py      # Per-channel async LLM queue
+        verbosity_store.py    # Per-user verbosity preference (Redis)
+        pronoun_store.py      # Per-user pronoun preference (Redis)
+        conversation_history.py  # Per-user/channel/persona history (Redis)
+      utils/
+        logger.py             # structlog setup
+        redis.py              # Async Redis client singleton
+    bratbot/                  # BratBot personality
       __main__.py             # Entry point (python -m bratbot)
       bot.py                  # BratBot class — lifecycle, extensions, services
-      personality.py          # Personality dataclass + BRAT_PERSONALITY
+      personality.py          # BRAT_PERSONALITY strings
       config/
         settings.py           # pydantic-settings (env var validation)
       commands/               # BratBot-specific slash commands
         ping.py               # /ping
         bratchat.py           # /bratchat (LLM query)
         cami.py               # /camichat (Cami personality, LLM query)
-        intensity.py          # /intensity (1-3 attitude level)
         verbose.py            # /verbose (1-3 response length)
+        pronoun.py            # /pronoun (male/female/other)
         help.py               # /help (list available commands)
         forget.py             # /forget (persona-specific), /forgetall
-      events/                 # Shared event handlers (used by all bots)
-        ready.py              # on_ready listener
-        guild.py              # Guild join/remove logging
-        messages.py           # @mention → LLM pipeline (fetches/stores history)
-        errors.py             # Global error handler
-      services/               # Shared services (used by all bots)
-        llm_client.py         # Async HTTP client for personality API
-        rate_limiter.py       # Redis rate limiting
-        request_queue.py      # Per-channel async LLM queue
-        intensity_store.py    # Per-user intensity preference (Redis)
-        verbosity_store.py    # Per-user verbosity preference (Redis)
-        conversation_history.py  # Per-user/channel/persona history (Redis)
+      services/
+        age_verification_store.py  # Per-user age verification (Redis)
       utils/
-        logger.py             # structlog setup
-        redis.py              # Async Redis client singleton
+        age_gate.py           # Age verification gate for 18+ commands
     bonniebot/                # BonnieBot personality (thin wrapper)
       __main__.py             # Entry point (python -m bonniebot)
-      bot.py                  # BonnieBot class — loads bratbot.events
+      bot.py                  # BonnieBot class — loads common.events
       personality.py          # BONNIE_PERSONALITY strings
       config/
         settings.py           # BONNIEBOT_* env vars
       commands/               # BonnieBot-specific slash commands
         bonniebot.py          # /bonniebot (LLM query)
         ping.py               # /ping
-        intensity.py          # /intensity
         verbose.py            # /verbose
+        pronoun.py            # /pronoun
         help.py               # /help (list available commands)
         forget.py             # /forget, /forgetall
   tests/
@@ -443,25 +449,15 @@ The monorepo supports multiple bot personalities sharing one codebase. Each pers
 3. **Chat endpoint** — each bot calls its own model server endpoint (`/bratchat`, `/bonniebot`)
 4. **Slash commands** — each bot has its own command names (`/bratchat`, `/bonniebot`)
 
-Shared infrastructure (event handlers, services, rate limiting, dedup) lives in `bratbot.events` and `bratbot.services`. BonnieBot loads `bratbot.events` as its event source, so bug fixes to message handling, error routing, and rate limiting automatically apply to both bots.
+Shared infrastructure (event handlers, services, rate limiting, dedup) lives in `common.events` and `common.services`. Both bots load `common.events` as their event source, so bug fixes to message handling, error routing, and rate limiting automatically apply to all bots.
 
 ### Adding a new personality
 
 1. Create `src/<botname>/` mirroring `src/bonniebot/` structure
 2. Define a `Personality` instance with your bot's strings and endpoint
-3. Set `_COG_PACKAGES = ("bratbot.events", "<botname>.commands")` in your bot class
+3. Set `_COG_PACKAGES = ("common.events", "<botname>.commands")` in your bot class
 4. Add a new endpoint in `model/app.py` and a system prompt in `model/prompts/`
 5. Add env vars, docker-compose service, and supervisord program
-
-## Brat Levels
-
-| Level | Personality | Example |
-|---|---|---|
-| 1 | Mildly tedious | *sigh* A loop iterates over a sequence... |
-| 2 | Dry sarcasm | Oh, you mean what every tutorial covers? Sure... |
-| 3 | Maximum brat | The AUDACITY of this question. The sheer NERVE... |
-
----
 
 ## LLM Inference Parameters
 
@@ -496,7 +492,6 @@ OLLAMA_NUM_CTX=32768
 | `REDIS_URL` | Yes | — | Redis connection string |
 | `LOG_LEVEL` | No | `INFO` | Logging level |
 | `GUILD_ID` | No | — | Dev guild ID for instant slash command sync |
-| `LLM_BRAT_LEVEL` | No | `3` | Default brat level (1–3, where 3 is maximum) |
 | `RATE_LIMIT_USER_SECONDS` | No | `5` | Per-user cooldown in seconds |
 | `RATE_LIMIT_CHANNEL_PER_MINUTE` | No | `10` | Max requests per channel per minute |
 | `LLM_QUEUE_MAX_DEPTH` | No | `5` | Max queued LLM requests per channel |
@@ -546,10 +541,11 @@ Each personality requires its own Discord application. Repeat these steps for bo
 | `/ping` | Check if the bot is alive (returns latency) |
 | `/bratchat <message>` | Ask BratBot a question |
 | `/camichat <message>` | Ask Cami a question |
-| `/intensity [1-3]` | Set or view your preferred brat intensity (1=mild, 2=medium, 3=maximum) |
 | `/verbose [1-3]` | Set or view your preferred response length (1=short, 2=medium, 3=long) |
+| `/pronoun [choice]` | Set how Cami addresses you (male/female/other). Omit to view current. |
 | `/forget <persona>` | Clear your conversation history for `bratbot` or `cami` in this channel |
 | `/forgetall` | Clear your conversation history for all personas in this channel |
+| `/help` | List available commands (in-character) |
 
 ### BonnieBot Commands
 
@@ -557,10 +553,11 @@ Each personality requires its own Discord application. Repeat these steps for bo
 |---|---|
 | `/ping` | Check if the bot is alive (returns latency) |
 | `/bonniebot <message>` | Talk to Bonnie |
-| `/intensity [1-3]` | Set or view your preferred intensity |
-| `/verbose [1-3]` | Set or view your preferred response length |
+| `/verbose [1-3]` | Set or view your preferred response length (1=short, 2=medium, 3=long) |
+| `/pronoun [choice]` | Set how Bonnie addresses you (male/female/other). Omit to view current. |
 | `/forget` | Clear your BonnieBot conversation history in this channel |
 | `/forgetall` | Clear your conversation history for all personas in this channel |
+| `/help` | List available commands (in-character) |
 
 You can also @mention either bot in any channel for conversational responses.
 

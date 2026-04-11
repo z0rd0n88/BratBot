@@ -18,6 +18,7 @@ Discord bot with a bratty, condescending personality, powered by a self-hosted L
 ## Dev Commands
 
 - **`uv` not on PATH**: use `.venv/Scripts/python.exe -m <tool>` for pytest, ruff, etc. (or `uv run` if `uv` is available)
+- **`jq` not on PATH**: shell hooks and scripts that parse JSON must use `python -c "import sys,json; ..."` — bare `jq` fails silently
 - **Pre-commit hook on Windows**: the encrypt-check hook defaults to `python3` (opens Microsoft Store); always commit with `PYTHON=python git commit` on Windows
 - `uv sync --all-extras` — install all dependencies including dev
 - `python -m pytest` — use this form (bare `pytest` is not on PATH on this Windows setup)
@@ -70,7 +71,7 @@ No special WSL configuration is needed — just clone and run `./scripts/deploy-
 
 - **Personality injection pattern**: Discord bots in monorepo use `Personality` dataclass attached to bot instance (`bot.personality`). Shared cogs read from it instead of module-level constants — enables multiple bot personalities without code duplication. Each bot defines its own personality file with strings + LLM endpoint.
 - **Personality voice guides**: `model/prompts/<botname>.txt` defines each bot's voice, pet names, and style — reference these when writing or updating `Personality` strings in `src/<botname>/personality.py`
-- User preference stores live in `services/` (e.g. `IntensityStore`, `VerbosityStore`) — Redis key `user:{id}:{pref}`, `get_x()` returns a default if unset, `was_set()` distinguishes "user chose this" from "default"
+- User preference stores live in `common/services/` (e.g. `VerbosityStore`, `PronounStore`) — Redis key `user:{id}:{pref}`, `get_x()` returns a default if unset, `was_set()` distinguishes "user chose this" from "default"
 - **Conversation history**: `ConversationHistoryStore` in `common/services/conversation_history.py` — Redis list keyed `history:{persona}:channel:{channel_id}:{user_id}`, trimmed to `history_size * 2` entries on every write. Persona names: `bratbot`, `cami`, `bonniebot`. BratBot initializes two stores (`bot.history_store` for BratBot, `bot.cami_history_store` for Cami); BonnieBot one (`bot.history_store`). History is fetched before and stored after every successful LLM call; Redis failures degrade gracefully (history skipped, bot still responds).
 - Python 3.12, Ruff for linting and formatting (line-length 100)
 - Ruff rules: E, F, I, UP, B, SIM
@@ -113,3 +114,5 @@ No special WSL configuration is needed — just clone and run `./scripts/deploy-
 - **Prompt variety directives**: `model/prompts/*.txt` files end with a `## RESPONSE VARIETY RULES` section — preserve this when revising personality prompts
 - **model/app.py field gap**: When adding a new field to `LLMClient`'s payload, also add it to `ChatRequest`, `CamiChatRequest`, and `BonnieChatRequest` in `model/app.py` — Pydantic silently drops unknown fields (no 422 error), so the field is missing in the endpoint handler with no warning.
 - **conftest.py env var stubs**: `bratbot.config.settings` is instantiated at import time — any test that imports a module chaining to it (`RateLimiter`, `request_queue`, `age_gate`) needs `DISCORD_BOT_TOKEN`, `DISCORD_CLIENT_ID`, `LLM_API_URL`, `REDIS_URL` set. `conftest.py` now provides all four via `os.environ.setdefault()`.
+- **Feature removal checklist**: when removing a command, check README.md, CLAUDE.md, .env.example, .env.runpod.example, docs/terms.html, and docs/privacy.html — all store feature-specific content that must be cleaned up
+- **Manual test checklist**: `docs/MANUAL_TESTING.md` lists every feature with exact steps and expected results; update it when adding/removing commands (a PostToolUse hook reminds you automatically when writing to `src/*/commands/` or `src/common/events/`)
