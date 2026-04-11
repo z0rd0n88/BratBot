@@ -17,8 +17,8 @@ from bratbot.services.pronoun_store import PronounStore
 from bratbot.services.rate_limiter import RateLimiter
 from bratbot.services.request_queue import RequestQueue
 from bratbot.services.verbosity_store import VerbosityStore
-from bratbot.utils.logger import get_logger
-from bratbot.utils.redis import close_redis, get_redis
+from common.utils.logger import get_logger
+from common.utils.redis import close_redis, get_redis
 
 log = get_logger(__name__)
 
