@@ -182,3 +182,62 @@ class TestFormatResultLine:
         }
         line = format_result_line("bratbot", record)
         assert "[contains: Alex \u2717]" in line
+
+
+import json
+
+
+class TestSaveJsonResults:
+    def test_writes_valid_json(self, tmp_path):
+        from scripts.test_bots import save_json_results
+
+        results = [
+            {
+                "suite": "single_turn",
+                "query_name": "greet",
+                "bot": "bratbot",
+                "endpoint": "/bratchat",
+                "request": {"message": "hi", "verbosity": 2, "history": []},
+                "response": {"request_id": "abc", "reply": "hey"},
+                "status_code": 200,
+                "latency_seconds": 1.0,
+                "soft_assertions": [],
+                "error": None,
+            }
+        ]
+        metadata = {
+            "base_url": "http://localhost:8000",
+            "bots_tested": ["bratbot"],
+            "suite": "all",
+        }
+
+        path = save_json_results(results, metadata, tmp_path)
+
+        assert path.exists()
+        data = json.loads(path.read_text())
+        assert data["base_url"] == "http://localhost:8000"
+        assert len(data["results"]) == 1
+        assert data["summary"]["total"] == 1
+        assert data["summary"]["success"] == 1
+        assert data["summary"]["errors"] == 0
+
+    def test_summary_counts_errors(self, tmp_path):
+        from scripts.test_bots import save_json_results
+
+        results = [
+            {"error": None, "soft_assertions": []},
+            {"error": "timeout", "soft_assertions": []},
+            {
+                "error": None,
+                "soft_assertions": [{"passed": False}],
+            },
+        ]
+        metadata = {"base_url": "http://test", "bots_tested": [], "suite": "all"}
+
+        path = save_json_results(results, metadata, tmp_path)
+        data = json.loads(path.read_text())
+
+        assert data["summary"]["total"] == 3
+        assert data["summary"]["success"] == 2
+        assert data["summary"]["errors"] == 1
+        assert data["summary"]["soft_assertion_flags"] == 1

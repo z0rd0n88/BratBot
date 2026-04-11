@@ -269,3 +269,40 @@ def run_multi_turn(
                         "content": result["response"].get("reply", ""),
                     })
     return results
+
+
+# ── JSON output ──────────────────────────────────────────────────────────────
+
+def save_json_results(
+    results: list[dict],
+    metadata: dict,
+    output_dir: Path,
+) -> Path:
+    """Save full results to a timestamped JSON file. Returns the file path."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    total = len(results)
+    errors = sum(1 for r in results if r.get("error"))
+    flags = sum(
+        1
+        for r in results
+        for a in r.get("soft_assertions", [])
+        if not a.get("passed")
+    )
+
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
+    output = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        **metadata,
+        "results": results,
+        "summary": {
+            "total": total,
+            "success": total - errors,
+            "errors": errors,
+            "soft_assertion_flags": flags,
+        },
+    }
+
+    path = output_dir / f"results_{ts}.json"
+    path.write_text(json.dumps(output, indent=2, ensure_ascii=False))
+    return path
