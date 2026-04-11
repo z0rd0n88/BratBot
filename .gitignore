@@ -66,3 +66,6 @@ ROADMAP.md
 
 # Test scripts with hardcoded endpoints
 test-api.sh
+
+# Bot test harness output
+scripts/test_results/
