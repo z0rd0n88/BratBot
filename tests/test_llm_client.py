@@ -104,7 +104,7 @@ class TestChatHappyPath:
 
         assert captured["method"] == "POST"
         assert captured["path"] == "/bratchat"
-        assert captured["body"] == {"message": "test msg", "brat_level": 2, "verbosity": 2, "pronoun": "male"}
+        assert captured["body"] == {"message": "test msg", "brat_level": 2, "verbosity": 2, "pronoun": "male", "history": []}
 
     async def test_chat_uses_default_brat_level(self, llm_client: LLMClient) -> None:
         """When no brat_level is passed, the client's default (3) is used."""

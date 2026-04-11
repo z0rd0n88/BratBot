@@ -69,10 +69,38 @@ class BratCog(commands.Cog):
             )
 
             async def _call_llm() -> None:
+                history = []
+                try:
+                    channel_id = active_interaction.channel.id if active_interaction.channel else 0
+                    history = await self.bot.history_store.get(
+                        channel_id, active_interaction.user.id
+                    )
+                except Exception:
+                    log.warning(
+                        "history_fetch_failed",
+                        guild_id=guild_id,
+                        user_id=active_interaction.user.id,
+                    )
+
                 response = await self.bot.llm_client.chat(
-                    message, brat_level=user_intensity, verbosity=user_verbosity
+                    message,
+                    brat_level=user_intensity,
+                    verbosity=user_verbosity,
+                    history=history,
                 )
                 await active_interaction.followup.send(f"> {message}\n\n{response['reply']}")
+
+                try:
+                    channel_id = active_interaction.channel.id if active_interaction.channel else 0
+                    await self.bot.history_store.append(
+                        channel_id, active_interaction.user.id, message, response["reply"]
+                    )
+                except Exception:
+                    log.warning(
+                        "history_append_failed",
+                        guild_id=guild_id,
+                        user_id=active_interaction.user.id,
+                    )
 
             try:
                 if active_interaction.channel is not None:

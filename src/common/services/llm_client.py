@@ -78,9 +78,11 @@ class LLMClient:
     async def chat(
         self,
         message: str,
+        *,
         brat_level: int | None = None,
         verbosity: int = 2,
         pronoun: str = "male",
+        history: list[dict] | None = None,
     ) -> dict:
         """Send a message and return the server's response dict.
 
@@ -100,6 +102,7 @@ class LLMClient:
             "brat_level": brat_level if brat_level is not None else self._default_brat_level,
             "verbosity": verbosity,
             "pronoun": pronoun,
+            "history": history or [],
         }
 
         try:

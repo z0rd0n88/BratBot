@@ -11,6 +11,7 @@ from discord.ext import commands
 from bonniebot.config import settings
 from bonniebot.personality import BONNIE_PERSONALITY
 from common.personality import Personality
+from common.services.conversation_history import ConversationHistoryStore
 from common.services.intensity_store import IntensityStore
 from common.services.llm_client import LLMClient
 from common.services.pronoun_store import PronounStore
@@ -34,6 +35,7 @@ class BonnieBot(commands.Bot):
     intensity_store: IntensityStore
     verbosity_store: VerbosityStore
     pronoun_store: PronounStore
+    history_store: ConversationHistoryStore
 
     def __init__(self) -> None:
         intents = discord.Intents.default()
@@ -71,6 +73,7 @@ class BonnieBot(commands.Bot):
         self.intensity_store = IntensityStore(redis)
         self.verbosity_store = VerbosityStore(redis)
         self.pronoun_store = PronounStore(redis)
+        self.history_store = ConversationHistoryStore(redis, "bonniebot", settings.history_size)
 
         # Auto-discover and load all extensions
         await self._load_extensions()
