@@ -11,19 +11,19 @@ from discord.ext import commands
 from bratbot.config import settings
 from bratbot.personality import BRAT_PERSONALITY, Personality
 from bratbot.services.age_verification_store import AgeVerificationStore
-from bratbot.services.intensity_store import IntensityStore
-from bratbot.services.llm_client import LLMClient
-from bratbot.services.pronoun_store import PronounStore
-from bratbot.services.rate_limiter import RateLimiter
-from bratbot.services.request_queue import RequestQueue
-from bratbot.services.verbosity_store import VerbosityStore
-from bratbot.utils.logger import get_logger
-from bratbot.utils.redis import close_redis, get_redis
+from common.services.intensity_store import IntensityStore
+from common.services.llm_client import LLMClient
+from common.services.pronoun_store import PronounStore
+from common.services.rate_limiter import RateLimiter
+from common.services.request_queue import RequestQueue
+from common.services.verbosity_store import VerbosityStore
+from common.utils.logger import get_logger
+from common.utils.redis import close_redis, get_redis
 
 log = get_logger(__name__)
 
 # Packages to auto-discover cog modules from
-_COG_PACKAGES = ("bratbot.commands", "bratbot.events")
+_COG_PACKAGES = ("bratbot.commands", "common.events")
 
 
 class BratBot(commands.Bot):

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from bratbot.services.intensity_store import IntensityStore
+from common.services.intensity_store import IntensityStore
 
 
 @pytest.fixture

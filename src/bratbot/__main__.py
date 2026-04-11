@@ -1,7 +1,7 @@
 """Entry point: python -m bratbot"""
 
 from bratbot.config import settings
-from bratbot.utils.logger import setup_logging
+from common.utils.logger import setup_logging
 
 setup_logging(settings.log_level)
 

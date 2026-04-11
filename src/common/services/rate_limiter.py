@@ -5,7 +5,7 @@ from __future__ import annotations
 import redis.asyncio as aioredis
 
 from bratbot.config import settings
-from bratbot.utils.logger import get_logger
+from common.utils.logger import get_logger
 
 log = get_logger(__name__)
 

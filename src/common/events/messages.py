@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 import discord
 from discord.ext import commands
 
-from bratbot.services.llm_client import LLMError, LLMWarmingError
-from bratbot.utils.logger import get_logger
+from common.services.llm_client import LLMError, LLMWarmingError
+from common.utils.logger import get_logger
 
 if TYPE_CHECKING:
     from bratbot.bot import BratBot

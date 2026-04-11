@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from bratbot.services.llm_client import LLMClient
+from common.services.llm_client import LLMClient
 
 # ---------------------------------------------------------------------------
 # Shared setup — runs before any test module is collected.

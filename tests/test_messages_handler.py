@@ -43,7 +43,7 @@ def _make_bot() -> AsyncMock:
 class TestMessageCogDedup:
     async def test_first_message_is_processed(self) -> None:
         """Normal message goes through — enqueue is called once."""
-        from bratbot.events.messages import MessageCog
+        from common.events.messages import MessageCog
 
         bot = _make_bot()
         cog = MessageCog(bot)
@@ -54,7 +54,7 @@ class TestMessageCogDedup:
 
     async def test_duplicate_message_id_is_skipped(self) -> None:
         """Second on_message call with the same message.id is a no-op."""
-        from bratbot.events.messages import MessageCog
+        from common.events.messages import MessageCog
 
         bot = _make_bot()
         cog = MessageCog(bot)
@@ -68,7 +68,7 @@ class TestMessageCogDedup:
 
     async def test_different_message_ids_both_processed(self) -> None:
         """Two messages with different IDs are each processed independently."""
-        from bratbot.events.messages import MessageCog
+        from common.events.messages import MessageCog
 
         bot = _make_bot()
         cog = MessageCog(bot)
@@ -80,7 +80,7 @@ class TestMessageCogDedup:
 
     async def test_dedup_cache_capacity(self) -> None:
         """maxlen=1000 eviction: after the cache fills and rolls over, evicted IDs are reprocessed."""
-        from bratbot.events.messages import MessageCog
+        from common.events.messages import MessageCog
 
         bot = _make_bot()
         cog = MessageCog(bot)

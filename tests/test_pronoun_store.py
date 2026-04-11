@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from bratbot.services.pronoun_store import PronounStore
+from common.services.pronoun_store import PronounStore
 
 
 @pytest.fixture

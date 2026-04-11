@@ -10,20 +10,20 @@ from discord.ext import commands
 
 from bonniebot.config import settings
 from bonniebot.personality import BONNIE_PERSONALITY
-from bratbot.personality import Personality
-from bratbot.services.intensity_store import IntensityStore
-from bratbot.services.llm_client import LLMClient
-from bratbot.services.pronoun_store import PronounStore
-from bratbot.services.rate_limiter import RateLimiter
-from bratbot.services.request_queue import RequestQueue
-from bratbot.services.verbosity_store import VerbosityStore
-from bratbot.utils.logger import get_logger
-from bratbot.utils.redis import close_redis, get_redis
+from common.personality import Personality
+from common.services.intensity_store import IntensityStore
+from common.services.llm_client import LLMClient
+from common.services.pronoun_store import PronounStore
+from common.services.rate_limiter import RateLimiter
+from common.services.request_queue import RequestQueue
+from common.services.verbosity_store import VerbosityStore
+from common.utils.logger import get_logger
+from common.utils.redis import close_redis, get_redis
 
 log = get_logger(__name__)
 
 # Shared events from bratbot + BonnieBot's own commands
-_COG_PACKAGES = ("bratbot.events", "bonniebot.commands")
+_COG_PACKAGES = ("common.events", "bonniebot.commands")
 
 
 class BonnieBot(commands.Bot):

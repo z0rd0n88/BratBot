@@ -7,7 +7,7 @@ import json
 import httpx
 import pytest
 
-from bratbot.services.llm_client import (
+from common.services.llm_client import (
     LLMClient,
     LLMConnectionError,
     LLMServerError,

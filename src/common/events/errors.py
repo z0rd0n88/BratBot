@@ -8,7 +8,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from bratbot.utils.logger import get_logger
+from common.utils.logger import get_logger
 
 log = get_logger(__name__)
 
@@ -89,7 +89,7 @@ class ErrorHandlerCog(commands.Cog):
             return p.not_found_error
 
         # LLM client errors
-        from bratbot.services.llm_client import (
+        from common.services.llm_client import (
             LLMConnectionError,
             LLMError,
             LLMServerError,
