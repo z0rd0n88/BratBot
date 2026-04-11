@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
-
 
 def _make_message(message_id: int = 111222333) -> MagicMock:
     """Build a minimal mock Discord message that passes all on_message guards."""
@@ -32,12 +30,98 @@ def _make_bot() -> AsyncMock:
     bot.rate_limiter.check_channel = AsyncMock(return_value=True)
     bot.request_queue.enqueue = AsyncMock(return_value=True)
     bot.llm_client.chat = AsyncMock(return_value={"reply": "hi", "request_id": "x"})
+    bot.verbosity_store.get_verbosity = AsyncMock(return_value=2)
+    bot.history_store.get = AsyncMock(return_value=[])
+    bot.history_store.append = AsyncMock()
     # Personality strings used by on_message
     bot.personality = MagicMock()
     bot.personality.empty_mention_reply = "You said nothing!"
     bot.personality.rate_limited_reply = "Too many messages!"
     bot.personality.llm_error_reply = "Something went wrong!"
     return bot
+
+
+class TestMessageCogLLMPath:
+    """Tests that exercise the _call_llm closure (awaited, not just enqueued)."""
+
+    async def test_llm_call_sends_history_and_verbosity(self) -> None:
+        """The enqueued coroutine fetches verbosity + history then calls llm_client.chat."""
+        from common.events.messages import MessageCog
+
+        bot = _make_bot()
+        bot.verbosity_store.get_verbosity = AsyncMock(return_value=3)
+        bot.history_store.get = AsyncMock(return_value=[{"role": "user", "content": "prior"}])
+
+        # Capture the coroutine passed to enqueue so we can await it
+        captured_coro = None
+
+        async def _capture_enqueue(_channel, coro):
+            nonlocal captured_coro
+            captured_coro = coro
+
+        bot.request_queue.enqueue = AsyncMock(side_effect=_capture_enqueue)
+
+        cog = MessageCog(bot)
+        await cog.on_message(_make_message(500))
+
+        assert captured_coro is not None
+        await captured_coro
+
+        bot.verbosity_store.get_verbosity.assert_awaited_once_with(777)
+        bot.history_store.get.assert_awaited_once_with(888, 777)
+        bot.llm_client.chat.assert_awaited_once_with(
+            "hello",
+            verbosity=3,
+            history=[{"role": "user", "content": "prior"}],
+        )
+
+    async def test_llm_call_appends_history_after_response(self) -> None:
+        """After a successful LLM response, the exchange is appended to history."""
+        from common.events.messages import MessageCog
+
+        bot = _make_bot()
+        bot.llm_client.chat = AsyncMock(return_value={"reply": "bye", "request_id": "y"})
+
+        captured_coro = None
+
+        async def _capture_enqueue(_channel, coro):
+            nonlocal captured_coro
+            captured_coro = coro
+
+        bot.request_queue.enqueue = AsyncMock(side_effect=_capture_enqueue)
+
+        cog = MessageCog(bot)
+        await cog.on_message(_make_message(501))
+
+        assert captured_coro is not None
+        await captured_coro
+
+        bot.history_store.append.assert_awaited_once_with(888, 777, "hello", "bye")
+
+    async def test_history_fetch_failure_degrades_gracefully(self) -> None:
+        """If history_store.get raises, chat is still called with empty history."""
+        from common.events.messages import MessageCog
+
+        bot = _make_bot()
+        bot.history_store.get = AsyncMock(side_effect=ConnectionError("redis down"))
+
+        captured_coro = None
+
+        async def _capture_enqueue(_channel, coro):
+            nonlocal captured_coro
+            captured_coro = coro
+
+        bot.request_queue.enqueue = AsyncMock(side_effect=_capture_enqueue)
+
+        cog = MessageCog(bot)
+        await cog.on_message(_make_message(502))
+
+        assert captured_coro is not None
+        await captured_coro
+
+        bot.llm_client.chat.assert_awaited_once()
+        _, kwargs = bot.llm_client.chat.call_args
+        assert kwargs["history"] == []
 
 
 class TestMessageCogDedup:

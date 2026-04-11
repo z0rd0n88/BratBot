@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import redis.asyncio as aioredis
+
+log = logging.getLogger(__name__)
 
 ALL_PERSONA_NAMES = ["bratbot", "cami", "bonniebot"]
 
@@ -30,7 +33,13 @@ class ConversationHistoryStore:
     async def get(self, channel_id: int, user_id: int) -> list[dict]:
         """Return conversation history as a list of role/content dicts, oldest first."""
         raw = await self._redis.lrange(self._key(channel_id, user_id), 0, -1)
-        return [json.loads(m) for m in raw]
+        result = []
+        for m in raw:
+            try:
+                result.append(json.loads(m))
+            except (json.JSONDecodeError, TypeError):
+                log.warning("skipping corrupt history entry for %s", self._key(channel_id, user_id))
+        return result
 
     async def append(self, channel_id: int, user_id: int, user_msg: str, bot_reply: str) -> None:
         """Push one exchange (user + assistant turn) and trim to the sliding window."""
@@ -47,8 +56,5 @@ class ConversationHistoryStore:
 
     async def clear_all(self, channel_id: int, user_id: int) -> None:
         """Delete history for all personas for the given channel/user pair."""
-        keys = [
-            f"history:{name}:channel:{channel_id}:{user_id}"
-            for name in ALL_PERSONA_NAMES
-        ]
+        keys = [f"history:{name}:channel:{channel_id}:{user_id}" for name in ALL_PERSONA_NAMES]
         await self._redis.delete(*keys)

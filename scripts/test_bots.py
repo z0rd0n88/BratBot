@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import sys
 import time
@@ -27,6 +28,7 @@ DEFAULT_OUTPUT_DIR = SCRIPT_DIR / "test_results"
 
 
 # ── Query loading ────────────────────────────────────────────────────────────
+
 
 def load_queries(path: str) -> dict:
     """Load and validate test queries from a YAML file.
@@ -59,15 +61,14 @@ def load_queries(path: str) -> dict:
             raise ValueError(f"Multi-turn query '{q['name']}' missing 'turns'")
         for turn in q["turns"]:
             if "message" not in turn:
-                raise ValueError(
-                    f"Multi-turn query '{q['name']}' has a turn missing 'message'"
-                )
+                raise ValueError(f"Multi-turn query '{q['name']}' has a turn missing 'message'")
         q.setdefault("description", "")
 
     return {"single_turn": single, "multi_turn": multi}
 
 
 # ── Payload building ─────────────────────────────────────────────────────────
+
 
 def build_payload(
     bot_name: str,
@@ -100,7 +101,7 @@ def format_result_line(bot: str, record: dict) -> str:
             preview += "..."
 
     latency = f"{record['latency_seconds']:.2f}s" if record["latency_seconds"] else "-.--s"
-    line = f"    {bot:<10s}{status} {latency:>6s}  \"{preview}\""
+    line = f'    {bot:<10s}{status} {latency:>6s}  "{preview}"'
 
     # Append soft assertion results
     for a in record.get("soft_assertions", []):
@@ -120,12 +121,7 @@ def print_summary(results: list[dict], output_path: str | None) -> None:
     total = len(results)
     errors = sum(1 for r in results if r["error"])
     success = total - errors
-    flags = sum(
-        1
-        for r in results
-        for a in r.get("soft_assertions", [])
-        if not a["passed"]
-    )
+    flags = sum(1 for r in results for a in r.get("soft_assertions", []) if not a["passed"])
 
     print()
     print("\u2500\u2500 Summary \u2500" * 5)
@@ -139,6 +135,7 @@ def print_summary(results: list[dict], output_path: str | None) -> None:
 
 
 # ── API runner ───────────────────────────────────────────────────────────────
+
 
 def check_health(client: httpx.Client) -> bool:
     """Check if the model server is healthy. Returns True if OK."""
@@ -200,9 +197,7 @@ def run_single_turn(
     for query in queries:
         print(f"  {query['name']}")
         for bot in bots:
-            result = send_query(
-                client, bot, query["message"], query["verbosity"], history=[]
-            )
+            result = send_query(client, bot, query["message"], query["verbosity"], history=[])
             record = {
                 "suite": "single_turn",
                 "query_name": query["name"],
@@ -240,11 +235,13 @@ def run_multi_turn(
                     expected = turn["expect_contains"]
                     reply = result["response"].get("reply", "")
                     passed = expected.lower() in reply.lower()
-                    assertions.append({
-                        "type": "contains",
-                        "expected": expected,
-                        "passed": passed,
-                    })
+                    assertions.append(
+                        {
+                            "type": "contains",
+                            "expected": expected,
+                            "passed": passed,
+                        }
+                    )
 
                 record = {
                     "suite": "multi_turn",
@@ -264,14 +261,17 @@ def run_multi_turn(
                 # Build history for next turn
                 if result["response"]:
                     history.append({"role": "user", "content": msg})
-                    history.append({
-                        "role": "assistant",
-                        "content": result["response"].get("reply", ""),
-                    })
+                    history.append(
+                        {
+                            "role": "assistant",
+                            "content": result["response"].get("reply", ""),
+                        }
+                    )
     return results
 
 
 # ── JSON output ──────────────────────────────────────────────────────────────
+
 
 def save_json_results(
     results: list[dict],
@@ -283,12 +283,7 @@ def save_json_results(
 
     total = len(results)
     errors = sum(1 for r in results if r.get("error"))
-    flags = sum(
-        1
-        for r in results
-        for a in r.get("soft_assertions", [])
-        if not a.get("passed")
-    )
+    flags = sum(1 for r in results for a in r.get("soft_assertions", []) if not a.get("passed"))
 
     ts = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%S")
     output = {
@@ -310,6 +305,7 @@ def save_json_results(
 
 # ── HTML report ──────────────────────────────────────────────────────────────
 
+
 def generate_html_report(
     results: list[dict],
     metadata: dict,
@@ -320,12 +316,7 @@ def generate_html_report(
 
     total = len(results)
     errors = sum(1 for r in results if r.get("error"))
-    flags = sum(
-        1
-        for r in results
-        for a in r.get("soft_assertions", [])
-        if not a.get("passed")
-    )
+    flags = sum(1 for r in results for a in r.get("soft_assertions", []) if not a.get("passed"))
 
     ts = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%S")
 
@@ -342,7 +333,7 @@ def generate_html_report(
         desc = group[0].get("description", "")
         cards_html += f'<div class="card"><h3>{name} <span class="suite">[{suite}]</span></h3>\n'
         if desc:
-            cards_html += f"<p class=\"desc\">{_esc(desc)}</p>\n"
+            cards_html += f'<p class="desc">{_esc(desc)}</p>\n'
         for r in group:
             bot = r.get("bot", "?")
             turn_label = ""
@@ -352,7 +343,7 @@ def generate_html_report(
             if r.get("error"):
                 status_class = "error"
                 status_icon = "\u2717"
-                body = f"<pre class=\"error-text\">{_esc(r['error'])}</pre>"
+                body = f'<pre class="error-text">{_esc(r["error"])}</pre>'
             else:
                 status_class = "ok"
                 status_icon = "\u2713"
@@ -373,8 +364,8 @@ def generate_html_report(
             cards_html += (
                 f'<details class="{status_class}">'
                 f"<summary>{status_icon} <b>{_esc(bot)}</b>{turn_label} "
-                f"<span class=\"latency\">{latency}</span> {assertions_html}</summary>\n"
-                f"<div class=\"detail\">\n"
+                f'<span class="latency">{latency}</span> {assertions_html}</summary>\n'
+                f'<div class="detail">\n'
                 f"<h4>Request</h4><pre>{_esc(json.dumps(r.get('request', {}), indent=2))}</pre>\n"
                 f"<h4>Response</h4>{body}\n"
                 f"</div></details>\n"
@@ -416,7 +407,7 @@ def generate_html_report(
 </head>
 <body>
 <h1>Bot Test Report</h1>
-<p>Base URL: <code>{_esc(metadata.get('base_url', '?'))}</code> | Generated: {ts}</p>
+<p>Base URL: <code>{_esc(metadata.get("base_url", "?"))}</code> | Generated: {ts}</p>
 <div class="stats">
   <div class="stat success"><b>{total - errors}/{total}</b> Responses</div>
   <div class="stat errors"><b>{errors}</b> Errors</div>
@@ -433,10 +424,11 @@ def generate_html_report(
 
 def _esc(s: str) -> str:
     """Escape HTML special characters."""
-    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+    return html.escape(s, quote=True)
 
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
+
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse command-line arguments."""

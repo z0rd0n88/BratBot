@@ -59,8 +59,9 @@ async def redis_mock():
         async def get(self, key: str) -> str | None:
             return self._store.get(key)
 
-        async def delete(self, key: str) -> None:
-            self._store.pop(key, None)
+        async def delete(self, *keys: str) -> None:
+            for key in keys:
+                self._store.pop(key, None)
 
         async def exists(self, key: str) -> bool:
             return key in self._store

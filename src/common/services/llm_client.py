@@ -93,12 +93,13 @@ class LLMClient:
             LLMServerError: 5xx response.
             LLMValidationError: 4xx response.
         """
-        payload = {
+        payload: dict = {
             "message": message[:2000],
             "verbosity": verbosity,
-            "pronoun": pronoun,
             "history": history or [],
         }
+        if pronoun != "male":
+            payload["pronoun"] = pronoun
 
         try:
             resp = await self._client.post(self._chat_endpoint, json=payload)

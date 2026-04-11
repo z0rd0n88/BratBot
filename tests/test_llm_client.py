@@ -24,6 +24,7 @@ CHAT_RESPONSE = {
     "reply": "Oh, you want ME to explain this? Fine.",
 }
 
+
 def _inject_transport(client: LLMClient, handler) -> None:
     """Replace the client's internal httpx transport with a mock handler."""
     client._client = httpx.AsyncClient(
@@ -102,7 +103,7 @@ class TestChatHappyPath:
 
         assert captured["method"] == "POST"
         assert captured["path"] == "/bratchat"
-        assert captured["body"] == {"message": "test msg", "verbosity": 2, "pronoun": "male", "history": []}
+        assert captured["body"] == {"message": "test msg", "verbosity": 2, "history": []}
 
     async def test_chat_sends_pronoun_female(self, llm_client: LLMClient) -> None:
         captured: dict = {}
@@ -116,7 +117,7 @@ class TestChatHappyPath:
 
         assert captured["body"]["pronoun"] == "female"
 
-    async def test_chat_pronoun_defaults_to_male(self, llm_client: LLMClient) -> None:
+    async def test_chat_pronoun_omitted_when_default(self, llm_client: LLMClient) -> None:
         captured: dict = {}
 
         def handler(request: httpx.Request) -> httpx.Response:
@@ -126,7 +127,7 @@ class TestChatHappyPath:
         _inject_transport(llm_client, handler)
         await llm_client.chat("hi")
 
-        assert captured["body"]["pronoun"] == "male"
+        assert "pronoun" not in captured["body"]
 
 
 # ---------------------------------------------------------------------------

@@ -63,11 +63,10 @@ class MessageCog(commands.Cog):
         if not await self.bot.rate_limiter.check_channel(message.channel.id):
             return  # Silently drop — channel is saturated
 
-        user_brat_level = await self.bot.intensity_store.get_intensity(message.author.id)
-        user_verbosity = await self.bot.verbosity_store.get_verbosity(message.author.id)
-
         # Build LLM coroutine and enqueue
         async def _call_llm() -> None:
+            user_verbosity = await self.bot.verbosity_store.get_verbosity(message.author.id)
+
             history = []
             try:
                 history = await self.bot.history_store.get(message.channel.id, message.author.id)
@@ -80,7 +79,6 @@ class MessageCog(commands.Cog):
 
             response = await self.bot.llm_client.chat(
                 content,
-                brat_level=user_brat_level,
                 verbosity=user_verbosity,
                 history=history,
             )
