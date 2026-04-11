@@ -335,6 +335,26 @@ uv run pytest -v            # Run all tests
 
 Tests use `httpx.MockTransport` to mock the LLM server — no running services required.
 
+### Manual Bot Testing (Test Harness)
+
+A standalone script sends predefined queries to all three personality endpoints and captures responses for manual review:
+
+```bash
+# Test all bots against local server
+python scripts/test_bots.py
+
+# Test against a remote server (e.g., RunPod)
+python scripts/test_bots.py --base-url http://runpod-host:8000
+
+# Generate an HTML report
+python scripts/test_bots.py --html
+
+# Test only specific bots or suites
+python scripts/test_bots.py --bots bratbot cami --suite single
+```
+
+Queries are defined in `scripts/test_queries.yaml` (10 single-turn + 3 multi-turn). Results are saved as timestamped JSON files in `scripts/test_results/`.
+
 ---
 
 ## Project Structure
@@ -354,6 +374,8 @@ BratBot/
   scripts/
     deploy-runpod.sh          # Build, push, switch models, manage pod
     runpod-entrypoint.sh      # RunPod container startup script
+    test_bots.py              # Manual bot test harness (hits API endpoints)
+    test_queries.yaml         # Predefined test queries (single + multi-turn)
   model/
     app.py                    # BratBotModel FastAPI app (personality endpoints)
     prompts/                  # System prompt files per personality
@@ -401,6 +423,7 @@ BratBot/
   tests/
     conftest.py               # Shared fixtures
     test_llm_client.py        # LLM client tests
+    test_bot_harness.py       # Test harness unit tests
     test_messages_handler.py  # Message dedup tests
 ```
 
