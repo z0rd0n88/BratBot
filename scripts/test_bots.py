@@ -65,3 +65,18 @@ def load_queries(path: str) -> dict:
         q.setdefault("description", "")
 
     return {"single_turn": single, "multi_turn": multi}
+
+
+# ── Payload building ─────────────────────────────────────────────────────────
+
+def build_payload(
+    bot_name: str,
+    message: str,
+    verbosity: int,
+    history: list[dict],
+) -> dict:
+    """Build the JSON request payload for a specific bot endpoint."""
+    bot = BOTS[bot_name]
+    payload = {"message": message, "verbosity": verbosity, "history": history}
+    payload.update(bot["extra_fields"])
+    return payload

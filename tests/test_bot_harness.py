@@ -69,3 +69,44 @@ class TestLoadQueries:
         bad.write_text("single_turn:\n  - name: oops\n")
         with pytest.raises(ValueError, match="message"):
             load_queries(str(bad))
+
+
+class TestBuildPayload:
+    def test_bratbot_payload_has_no_pronoun(self):
+        from scripts.test_bots import build_payload
+
+        payload = build_payload("bratbot", "hello", verbosity=2, history=[])
+        assert payload == {"message": "hello", "verbosity": 2, "history": []}
+        assert "pronoun" not in payload
+
+    def test_cami_payload_includes_pronoun(self):
+        from scripts.test_bots import build_payload
+
+        payload = build_payload("cami", "hello", verbosity=1, history=[])
+        assert payload == {
+            "message": "hello",
+            "verbosity": 1,
+            "pronoun": "male",
+            "history": [],
+        }
+
+    def test_bonniebot_payload_includes_pronoun(self):
+        from scripts.test_bots import build_payload
+
+        payload = build_payload("bonniebot", "hello", verbosity=3, history=[])
+        assert payload == {
+            "message": "hello",
+            "verbosity": 3,
+            "pronoun": "male",
+            "history": [],
+        }
+
+    def test_payload_includes_history(self):
+        from scripts.test_bots import build_payload
+
+        history = [
+            {"role": "user", "content": "hi"},
+            {"role": "assistant", "content": "hey"},
+        ]
+        payload = build_payload("bratbot", "what?", verbosity=2, history=history)
+        assert payload["history"] == history
