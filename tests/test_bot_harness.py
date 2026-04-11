@@ -110,3 +110,75 @@ class TestBuildPayload:
         ]
         payload = build_payload("bratbot", "what?", verbosity=2, history=history)
         assert payload["history"] == history
+
+
+class TestFormatResultLine:
+    def test_success_line(self):
+        from scripts.test_bots import format_result_line
+
+        record = {
+            "bot": "bratbot",
+            "latency_seconds": 1.23,
+            "response": {"reply": "Oh wow, someone actually said hi to me today"},
+            "error": None,
+            "soft_assertions": [],
+        }
+        line = format_result_line("bratbot", record)
+        assert "\u2713" in line
+        assert "1.23s" in line
+        assert "bratbot" in line
+        assert "Oh wow" in line
+
+    def test_error_line(self):
+        from scripts.test_bots import format_result_line
+
+        record = {
+            "bot": "cami",
+            "latency_seconds": 0.5,
+            "response": None,
+            "error": "HTTP 500: Internal Server Error",
+            "soft_assertions": [],
+        }
+        line = format_result_line("cami", record)
+        assert "\u2717" in line
+        assert "cami" in line
+
+    def test_truncates_long_reply(self):
+        from scripts.test_bots import format_result_line
+
+        record = {
+            "bot": "bratbot",
+            "latency_seconds": 1.0,
+            "response": {"reply": "A" * 200},
+            "error": None,
+            "soft_assertions": [],
+        }
+        line = format_result_line("bratbot", record)
+        assert "..." in line
+        assert len(line) < 200
+
+    def test_soft_assertion_pass(self):
+        from scripts.test_bots import format_result_line
+
+        record = {
+            "bot": "bratbot",
+            "latency_seconds": 1.0,
+            "response": {"reply": "Your name is Alex"},
+            "error": None,
+            "soft_assertions": [{"type": "contains", "expected": "Alex", "passed": True}],
+        }
+        line = format_result_line("bratbot", record)
+        assert "[contains: Alex \u2713]" in line
+
+    def test_soft_assertion_fail(self):
+        from scripts.test_bots import format_result_line
+
+        record = {
+            "bot": "bratbot",
+            "latency_seconds": 1.0,
+            "response": {"reply": "I forgot"},
+            "error": None,
+            "soft_assertions": [{"type": "contains", "expected": "Alex", "passed": False}],
+        }
+        line = format_result_line("bratbot", record)
+        assert "[contains: Alex \u2717]" in line
