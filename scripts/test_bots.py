@@ -432,3 +432,106 @@ def generate_html_report(
 def _esc(s: str) -> str:
     """Escape HTML special characters."""
     return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+
+# ── CLI ──────────────────────────────────────────────────────────────────────
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Bot test harness — send predefined queries to bot endpoints for manual review",
+    )
+    parser.add_argument(
+        "--base-url",
+        default="http://localhost:8000",
+        help="Model server base URL (default: http://localhost:8000)",
+    )
+    parser.add_argument(
+        "--bots",
+        nargs="+",
+        choices=list(BOTS.keys()),
+        default=list(BOTS.keys()),
+        help="Bots to test (default: all)",
+    )
+    parser.add_argument(
+        "--suite",
+        choices=["single", "multi", "all"],
+        default="all",
+        help="Test suite to run (default: all)",
+    )
+    parser.add_argument(
+        "--queries",
+        default=str(DEFAULT_QUERIES),
+        help=f"Path to query YAML file (default: {DEFAULT_QUERIES})",
+    )
+    parser.add_argument(
+        "--html",
+        action="store_true",
+        help="Generate HTML report",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=str(DEFAULT_OUTPUT_DIR),
+        help=f"Output directory for results (default: {DEFAULT_OUTPUT_DIR})",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> None:
+    """Main entry point."""
+    args = parse_args(argv)
+    output_dir = Path(args.output_dir)
+
+    # Load queries
+    try:
+        queries = load_queries(args.queries)
+    except (FileNotFoundError, ValueError) as e:
+        print(f"Error loading queries: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Create HTTP client
+    client = httpx.Client(base_url=args.base_url, timeout=httpx.Timeout(60.0, connect=5.0))
+
+    print(f"Testing bots at {args.base_url}...")
+
+    # Health check
+    if not check_health(client):
+        print(f"Health check FAILED — is the server running at {args.base_url}?", file=sys.stderr)
+        client.close()
+        sys.exit(1)
+    print("Health check: OK\n")
+
+    all_results: list[dict] = []
+
+    # Run single-turn tests
+    if args.suite in ("single", "all") and queries["single_turn"]:
+        print("\u2500\u2500 Single-Turn Tests \u2500" * 4)
+        results = run_single_turn(client, queries["single_turn"], args.bots)
+        all_results.extend(results)
+
+    # Run multi-turn tests
+    if args.suite in ("multi", "all") and queries["multi_turn"]:
+        print()
+        print("\u2500\u2500 Multi-Turn Tests \u2500" * 4)
+        results = run_multi_turn(client, queries["multi_turn"], args.bots)
+        all_results.extend(results)
+
+    client.close()
+
+    # Save results
+    metadata = {
+        "base_url": args.base_url,
+        "bots_tested": args.bots,
+        "suite": args.suite,
+    }
+
+    json_path = save_json_results(all_results, metadata, output_dir)
+    print_summary(all_results, str(json_path))
+
+    if args.html:
+        html_path = generate_html_report(all_results, metadata, output_dir)
+        print(f"  HTML report: {html_path}")
+
+
+if __name__ == "__main__":
+    main()
