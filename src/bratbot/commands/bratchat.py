@@ -55,9 +55,6 @@ class BratCog(commands.Cog):
             user_verbosity = await self.bot.verbosity_store.get_verbosity(
                 active_interaction.user.id
             )
-            user_intensity = await self.bot.intensity_store.get_intensity(
-                active_interaction.user.id
-            )
 
             log.info(
                 "bratchat_command",
@@ -83,7 +80,6 @@ class BratCog(commands.Cog):
 
                 response = await self.bot.llm_client.chat(
                     message,
-                    brat_level=user_intensity,
                     verbosity=user_verbosity,
                     history=history,
                 )

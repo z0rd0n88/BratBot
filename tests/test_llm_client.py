@@ -21,7 +21,6 @@ from common.services.llm_client import (
 
 CHAT_RESPONSE = {
     "request_id": "abc123",
-    "brat_level": 3,
     "reply": "Oh, you want ME to explain this? Fine.",
 }
 
@@ -87,7 +86,6 @@ class TestChatHappyPath:
         result = await llm_client.chat("Hello")
 
         assert result["request_id"] == "abc123"
-        assert result["brat_level"] == 3
         assert "explain" in result["reply"].lower()
 
     async def test_chat_sends_correct_payload(self, llm_client: LLMClient) -> None:
@@ -104,49 +102,7 @@ class TestChatHappyPath:
 
         assert captured["method"] == "POST"
         assert captured["path"] == "/bratchat"
-        assert captured["body"] == {"message": "test msg", "brat_level": 3, "verbosity": 2, "pronoun": "male", "history": []}
-
-    async def test_chat_uses_default_brat_level(self, llm_client: LLMClient) -> None:
-        """When no brat_level is passed, the client's default (3) is used."""
-        captured: dict = {}
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            captured["body"] = json.loads(request.content)
-            return httpx.Response(200, json=CHAT_RESPONSE)
-
-        _inject_transport(llm_client, handler)
-        await llm_client.chat("hi")
-
-        assert captured["body"]["brat_level"] == 3
-
-    async def test_chat_explicit_brat_level_overrides_default(self, llm_client: LLMClient) -> None:
-        captured: dict = {}
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            captured["body"] = json.loads(request.content)
-            return httpx.Response(200, json=CHAT_RESPONSE)
-
-        _inject_transport(llm_client, handler)
-        await llm_client.chat("hi", brat_level=1)
-
-        assert captured["body"]["brat_level"] == 1
-
-    @pytest.mark.parametrize("brat_level", [1, 2, 3])
-    async def test_chat_each_brat_level(self, llm_client: LLMClient, brat_level: int) -> None:
-        captured: dict = {}
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            captured["body"] = json.loads(request.content)
-            return httpx.Response(
-                200,
-                json={**CHAT_RESPONSE, "brat_level": brat_level},
-            )
-
-        _inject_transport(llm_client, handler)
-        result = await llm_client.chat("test", brat_level=brat_level)
-
-        assert captured["body"]["brat_level"] == brat_level
-        assert result["brat_level"] == brat_level
+        assert captured["body"] == {"message": "test msg", "verbosity": 2, "pronoun": "male", "history": []}
 
     async def test_chat_sends_pronoun_female(self, llm_client: LLMClient) -> None:
         captured: dict = {}

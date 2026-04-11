@@ -93,7 +93,7 @@ No special WSL configuration is needed — just clone and run `./scripts/deploy-
 - **LLMClient endpoint isolation**: Instantiate with `chat_endpoint` param (e.g., `/bratchat` for BratBot, `/bonniebot` for BonnieBot). Each bot process has its own client instance — no shared singleton.
 - **Cami LLM client**: BratBot has a second client `bot.cami_llm_client` (`chat_endpoint="/camichat"`) — use it in Cami commands, not `bot.llm_client`. There is no `cami_chat()` method.
 - **Cami history store**: BratBot has a second history store `bot.cami_history_store` (persona `"cami"`) — use it in Cami commands, not `bot.history_store`.
-- **`LLMClient` requires `default_brat_level`**: constructor signature is `LLMClient(base_url, chat_endpoint, default_brat_level, timeout)`. The `chat()` method accepts `brat_level` as a keyword-only arg; if omitted, the client's default is used. The `history` kwarg is also keyword-only and defaults to `[]`.
+- **`LLMClient` constructor**: `LLMClient(base_url, chat_endpoint, timeout)`. The `chat()` method accepts `verbosity`, `pronoun`, and `history` as keyword-only args; `history` defaults to `[]`.
 - **`/forget` persona param (BratBot)**: `ForgetCog.forget()` takes `persona: Literal["bratbot", "cami"]` and clears the corresponding store. `/forgetall` calls `history_store.clear_all()` which deletes keys for all three persona names defined in `ALL_PERSONA_NAMES` (`common/services/conversation_history.py`).
 - `model/` is not a Python package (no `__init__.py`) — tests add it to `sys.path` manually
 - Rate limiter degrades gracefully: if Redis is down, requests are allowed through

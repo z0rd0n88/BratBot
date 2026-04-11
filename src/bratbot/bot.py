@@ -12,7 +12,6 @@ from bratbot.config import settings
 from bratbot.personality import BRAT_PERSONALITY, Personality
 from bratbot.services.age_verification_store import AgeVerificationStore
 from common.services.conversation_history import ConversationHistoryStore
-from common.services.intensity_store import IntensityStore
 from common.services.llm_client import LLMClient
 from common.services.pronoun_store import PronounStore
 from common.services.rate_limiter import RateLimiter
@@ -60,13 +59,11 @@ class BratBot(commands.Bot):
         self.llm_client = LLMClient(
             base_url=settings.llm_api_url,
             chat_endpoint=self.personality.chat_endpoint,
-            default_brat_level=settings.llm_brat_level,
             timeout=settings.llm_timeout_seconds,
         )
         self.cami_llm_client = LLMClient(
             base_url=settings.llm_api_url,
             chat_endpoint="/camichat",
-            default_brat_level=settings.llm_brat_level,
             timeout=settings.llm_timeout_seconds,
         )
         healthy = await self.llm_client.health_check()
