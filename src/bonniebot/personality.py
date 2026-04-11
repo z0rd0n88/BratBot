@@ -1,6 +1,6 @@
 """BonnieBot personality — fill in these strings before first deployment."""
 
-from bratbot.personality import Personality
+from common.personality import Personality
 
 _BONNIE_HELP = """\
 **BonnieBot Commands** \N{EM DASH} I'll make this easy for you, sweetheart. \N{WINKING FACE}
